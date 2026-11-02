@@ -1,0 +1,48 @@
+name: Scraper update
+
+# Once a day, check whether a newer israeli-bank-scrapers has been public for at least 7 days. If so, adopt it,
+# run every check, and publish a new app release. If any step fails nothing is published, and GitHub emails the
+# repository owner about the failed run.
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Find a version to adopt
+        id: pick
+        run: node scripts/pick-scraper-version.mjs
+      - name: Adopt, verify and release
+        if: steps.pick.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.pick.outputs.version }}
+        run: |
+          npm install --save-exact "israeli-bank-scrapers@${NEW_VERSION}"
+          npm audit signatures
+          npm run typecheck
+          npx vitest run
+          node -e "require('israeli-bank-scrapers')"
+          npm version patch --no-git-tag-version
+          APP_VERSION=$(node -p "require('./package.json').version")
+          git config user.name "paymate-bot"
+          git config user.email "paymate-bot@users.noreply.github.com"
+          git commit -am "Update israeli-bank-scrapers to ${NEW_VERSION}"
+          git tag "v${APP_VERSION}"
+          git push origin HEAD:main "v${APP_VERSION}"
+          gh workflow run release.yml -f tag="v${APP_VERSION}"

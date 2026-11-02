@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-electron
+release
+*.db
+*.xlsx
+!tests/fixtures/*.xlsx
+.impeccable/
+.claude/
+.env
+PRODUCT.md

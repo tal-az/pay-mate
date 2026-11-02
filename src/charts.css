@@ -1,0 +1,50 @@
+/* Charts */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.donut { position: relative; width: 210px; height: 210px; margin: 4px auto 14px; }
+.donut svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.donut .slice { outline: none; }
+.donut .slice.click { cursor: pointer; }
+.donut .slice path:last-child { transition: stroke-width 140ms var(--ease-out); }
+.donut .slice:focus-visible path:last-child { stroke-width: 32; }
+.donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; padding: 0 44px; }
+.donut-center b { font-size: 30px; font-weight: 800; line-height: 1.1; }
+.donut-center span { font-size: 13px; color: var(--ink-2); line-height: 1.3; }
+
+.monthbars { display: flex; align-items: flex-end; gap: 10px; height: 168px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+.mb { all: unset; box-sizing: border-box; flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; gap: 4px; position: relative; }
+.mb-track { width: 100%; max-width: 24px; flex: 1; display: flex; align-items: flex-end; }
+.mb-track i { display: block; width: 100%; background: #bdb7a6; border-radius: 4px 4px 0 0; transition: background 140ms var(--ease-out); }
+.mb.on .mb-track i { background: var(--ink); }
+.mb:hover .mb-track i, .mb:focus-visible .mb-track i { background: var(--ink-2); }
+.mb.on:hover .mb-track i { background: var(--ink); }
+.mb-value { font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 140ms var(--ease-out); white-space: nowrap; }
+.mb.on .mb-value, .mb:hover .mb-value, .mb:focus-visible .mb-value { opacity: 1; }
+.mb-label { position: absolute; top: calc(100% + 6px); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.mb:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+.strip { margin: 0 0 16px; }
+.strip-bars { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--line); padding-top: 18px; }
+.strip-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.strip-col i { display: block; width: 100%; max-width: 22px; background: #bdb7a6; border-radius: 3px 3px 0 0; }
+.strip-col i.peak { background: var(--ink); }
+.strip-col:hover i { background: var(--ink-2); }
+.strip-col em { position: absolute; top: -16px; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
+.strip figcaption { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+
+.timeline { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 14px 12px; overflow-x: auto; }
+.tl-row { display: grid; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tl-head { color: var(--ink-2); font-size: 13px; }
+.tl-m, .tl-cell { text-align: center; display: flex; justify-content: center; }
+.tl-num { text-align: left; color: var(--ink-2); font-size: 14px; padding-inline-end: 14px; }
+.tl-dot, .tl-hole, .tl-none { display: inline-block; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; vertical-align: middle; }
+.tl-dot { background: var(--ink); }
+.tl-hole { border: 2px solid var(--tomato); background: var(--paper); }
+.tl-none { width: 10px; height: 2px; border-radius: 1px; background: var(--line); }
+.tl-legend { display: flex; gap: 20px; flex-wrap: wrap; margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+.tl-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.flag.warn { color: var(--tomato); border-color: var(--tomato); }
+
+.meter { position: relative; height: 10px; background: var(--line); border-radius: 5px; display: block; }
+.meter i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 5px; display: block; }
+.meter b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
