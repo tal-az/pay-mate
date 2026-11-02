@@ -74,6 +74,14 @@ export interface TimelineRow {
   holes: number;
 }
 
+export interface UnknownMerchant {
+  merchant: string;
+  count: number;
+  total: number;
+  firstDate: string;
+  lastDate: string;
+}
+
 export interface Budget {
   categoryKey: string;
   monthlyAmount: number;
@@ -121,6 +129,10 @@ export type UpdateStatus =
 export interface PayMateApi {
   months(): Promise<string[]>;
   lastUpdate(): Promise<LastUpdate | null>;
+  unknownMerchants(month: string): Promise<UnknownMerchant[]>;
+  /** Maps a business to a category in every month; "other" means leave it as other. */
+  mapMerchant(merchant: string, categoryKey: string): Promise<void>;
+  undoMapMerchant(merchant: string): Promise<void>;
   monthTotals(): Promise<MonthTotal[]>;
   recurringTimeline(): Promise<TimelineRow[]>;
   summary(month: string): Promise<MonthSummary>;

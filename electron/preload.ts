@@ -5,6 +5,9 @@ const call = (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel
 contextBridge.exposeInMainWorld('paymate', {
   months: () => call('months'),
   lastUpdate: () => call('lastUpdate'),
+  unknownMerchants: (month: string) => call('unknownMerchants', month),
+  mapMerchant: (merchant: string, key: string) => call('mapMerchant', merchant, key),
+  undoMapMerchant: (merchant: string) => call('undoMapMerchant', merchant),
   monthTotals: () => call('monthTotals'),
   recurringTimeline: () => call('recurringTimeline'),
   summary: (month: string) => call('summary', month),

@@ -83,3 +83,31 @@ export function setCategory(db: Db, txId: string, categoryKey: string, applyToMe
   }
   db.prepare('UPDATE transactions SET category_id = ?, category_locked = 1 WHERE id = ?').run(catId, txId);
 }
+
+/** Maps every charge from this business, in all months, to a category, and remembers it for future imports. Returns how many charges changed. */
+export function assignMerchant(db: Db, merchant: string, categoryKey: string): number {
+  const catId = categoryIds(db).get(categoryKey);
+  if (catId == null) throw new Error(`unknown category ${categoryKey}`);
+  db.prepare(
+    `INSERT INTO merchant_rules (pattern, category_id, origin) VALUES (?, ?, ?)
+     ON CONFLICT(pattern) DO UPDATE SET category_id = excluded.category_id`,
+  ).run(merchant.toLowerCase(), catId, 'user');
+  db.prepare('DELETE FROM merchant_reviews WHERE merchant_key = ?').run(merchant);
+  const res = db.prepare('UPDATE transactions SET category_id = ? WHERE merchant = ? AND category_locked = 0').run(catId, merchant);
+  return Number(res.changes);
+}
+
+/** The user looked at this business and chose to leave it as "other", so it is not asked about again. */
+export function keepMerchantAsOther(db: Db, merchant: string) {
+  db.prepare('INSERT OR REPLACE INTO merchant_reviews (merchant_key, decided_at) VALUES (?, ?)').run(merchant, new Date().toISOString());
+}
+
+/** Reverses assignMerchant or keepMerchantAsOther: the business goes back to being unknown. */
+export function undoMerchant(db: Db, merchant: string) {
+  const other = categoryIds(db).get('other');
+  db.prepare('DELETE FROM merchant_rules WHERE pattern = ? AND origin = ?').run(merchant.toLowerCase(), 'user');
+  db.prepare('DELETE FROM merchant_reviews WHERE merchant_key = ?').run(merchant);
+  if (other != null) {
+    db.prepare('UPDATE transactions SET category_id = ? WHERE merchant = ? AND category_locked = 0').run(other, merchant);
+  }
+}

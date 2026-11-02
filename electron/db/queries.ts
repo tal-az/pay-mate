@@ -1,7 +1,7 @@
 import type { Db } from './db';
 import { buildInsights, monthOf, recurringTimeline } from '../core/insights';
 import type {
-  Budget, Category, LastUpdate, MonthTotal, TimelineRow, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
+  Budget, Category, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
 } from '../../shared/api';
 
 interface Row {
@@ -56,6 +56,20 @@ export function monthTotals(db: Db): MonthTotal[] {
 
 export function recurringTimelineRows(db: Db): TimelineRow[] {
   return recurringTimeline(allTransactions(db), 6);
+}
+
+/** Businesses in a month that landed in "other" automatically and that the user has not decided about yet. */
+export function unknownMerchants(db: Db, month: string): UnknownMerchant[] {
+  return db
+    .prepare(
+      `SELECT t.merchant AS merchant, COUNT(*) AS count, SUM(t.charged_amount) AS total,
+              MIN(t.purchase_date) AS firstDate, MAX(t.purchase_date) AS lastDate
+       FROM transactions t JOIN categories c ON c.id = t.category_id
+       WHERE c.key = 'other' AND t.category_locked = 0 AND ${MONTH_SQL} = ?
+         AND t.merchant NOT IN (SELECT merchant_key FROM merchant_reviews)
+       GROUP BY t.merchant ORDER BY total DESC`,
+    )
+    .all(month) as unknown as UnknownMerchant[];
 }
 
 export function lastUpdate(db: Db): LastUpdate | null {

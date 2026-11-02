@@ -49,3 +49,8 @@ CREATE TABLE IF NOT EXISTS imports (
   added INTEGER NOT NULL,
   skipped INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS merchant_reviews (
+  merchant_key TEXT PRIMARY KEY,
+  decided_at TEXT NOT NULL
+);

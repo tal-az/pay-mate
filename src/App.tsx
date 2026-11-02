@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, isDemo } from './api';
 import { monthLabel } from './format';
 import { isStale, longDate } from './freshness';
@@ -8,14 +8,17 @@ import { Transactions } from './pages/Transactions';
 import { Insights } from './pages/Insights';
 import { Budgets } from './pages/Budgets';
 import { ImportPage } from './pages/ImportPage';
+import { Mapping } from './pages/Mapping';
+import { MappingNudge } from './components/MappingNudge';
 
-export type PageId = 'overview' | 'transactions' | 'insights' | 'budgets' | 'settings';
+export type PageId = 'overview' | 'transactions' | 'insights' | 'budgets' | 'mapping' | 'settings';
 
 const NAV: Array<{ id: PageId; label: string }> = [
   { id: 'overview', label: 'סקירה' },
   { id: 'transactions', label: 'עסקאות' },
   { id: 'insights', label: 'תובנות' },
   { id: 'budgets', label: 'תקציבים' },
+  { id: 'mapping', label: 'מיפוי עסקים' },
   { id: 'settings', label: 'ייבוא והגדרות' },
 ];
 
@@ -42,6 +45,11 @@ export function App() {
   const [staleDismissed, setStaleDismissed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  const [unknownCount, setUnknownCount] = useState(0);
+  const [nudge, setNudge] = useState(false);
+  const [tick, setTick] = useState(0);
+  const pageRef = useRef<PageId>('overview');
+  pageRef.current = page;
 
   const load = useCallback(async () => {
     const [ms, cats, last] = await Promise.all([api.months(), api.categories(), api.lastUpdate()]);
@@ -55,10 +63,28 @@ export function App() {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => api.onUpdateStatus(setUpdate), []);
 
-  const refresh = useCallback(() => { void load(); }, [load]);
+  const refresh = useCallback(() => { setTick((t) => t + 1); void load(); }, [load]);
+
+  // The count behind the rail badge follows every change.
+  useEffect(() => {
+    if (!month) { setUnknownCount(0); return; }
+    void api.unknownMerchants(month).then((l) => setUnknownCount(l.length));
+  }, [month, tick]);
+
+  // The corner offer appears when a month's window opens (or new months arrive), once, and never while playing.
+  const monthsKey = months.join(',');
+  useEffect(() => {
+    if (!month) return;
+    let cancelled = false;
+    void api.unknownMerchants(month).then((l) => {
+      if (!cancelled && l.length > 0 && pageRef.current !== 'mapping') setNudge(true);
+    });
+    return () => { cancelled = true; };
+  }, [month, monthsKey]);
   const go = useCallback((p: PageId, categoryKey?: string) => {
     setFilterCategory(categoryKey ?? '');
     setPage(p);
+    if (p === 'mapping') setNudge(false);
   }, []);
 
   const notify = useCallback((text: string) => setNotice(text), []);
@@ -71,7 +97,8 @@ export function App() {
         <div className="brand">PayMate</div>
         {NAV.map((n) => (
           <button key={n.id} className="nav-item" aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
-            {n.label}
+            <span>{n.label}</span>
+            {n.id === 'mapping' && unknownCount > 0 && <span className="badge" aria-label={`${unknownCount} עסקים לא ממופים`}>{unknownCount}</span>}
           </button>
         ))}
         <p className="privacy">
@@ -128,11 +155,21 @@ export function App() {
             <Insights {...shared} />
           ) : page === 'budgets' ? (
             <Budgets {...shared} />
+          ) : page === 'mapping' ? (
+            <Mapping {...shared} />
           ) : (
             <ImportPage {...shared} />
           )}
         </div>
       </main>
+      {nudge && month && unknownCount > 0 && page !== 'mapping' && (
+        <MappingNudge
+          count={unknownCount}
+          monthName={monthLabel(month)}
+          onStart={() => go('mapping')}
+          onClose={() => setNudge(false)}
+        />
+      )}
     </div>
   );
 }

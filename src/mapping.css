@@ -1,0 +1,74 @@
+/* Mapping game */
+.mapping { max-width: 760px; }
+.mprogress { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.mprogress .meter { flex: 1; }
+.mcount { font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+
+.mcard {
+  position: relative;
+  padding: 8px 0 4px;
+  animation: card-in 280ms var(--ease-out);
+}
+.mcard.leaving { transform: translateX(-90px) rotate(-5deg); opacity: 0; transition: transform 240ms var(--ease-out), opacity 240ms var(--ease-out); }
+@keyframes card-in { from { transform: translateY(14px) scale(0.98); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.mtag {
+  display: inline-block;
+  max-width: 100%;
+  background: var(--tag);
+  color: var(--tag-ink);
+  padding: 14px 36px 18px 52px;
+  clip-path: polygon(0 50%, 40px 0, 100% 0, 100% 100%, 40px 100%);
+}
+.mname { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; }
+.mmeta { margin-top: 10px; color: var(--ink-2); font-size: 15px; }
+
+.stamp {
+  position: absolute; top: 14px; inset-inline-start: 24px;
+  border: 3px solid; border-radius: 8px; background: var(--paper);
+  padding: 4px 14px; font-weight: 800; font-size: 20px; transform: rotate(-7deg);
+  animation: stamp 200ms var(--ease-out);
+}
+@keyframes stamp { from { transform: rotate(-7deg) scale(1.5); opacity: 0; } to { transform: rotate(-7deg) scale(1); opacity: 1; } }
+
+.mchoices { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 22px 0 16px; }
+.mchip {
+  display: flex; align-items: center; gap: 10px; text-align: start;
+  min-height: 48px; padding: 8px 14px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  cursor: pointer; font-size: 16px;
+  transition: border-color 140ms var(--ease-out), transform 140ms var(--ease-out);
+}
+.mchip:hover:not(:disabled) { border-color: var(--ink); transform: translateY(-1px); }
+.mchip:active:not(:disabled) { transform: scale(0.98); }
+.mchip:disabled { cursor: default; opacity: 0.6; }
+.mchip span:nth-child(2) { flex: 1; }
+.mchip kbd { font: inherit; font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; min-width: 20px; text-align: center; }
+
+.mactions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mfeedback { margin: 0; font-weight: 600; min-width: 140px; }
+.mdone { padding-top: 24px; }
+.mtag-big { display: inline-block; font-size: 56px; margin-bottom: 16px; }
+
+/* Corner nudge */
+.nudge {
+  position: fixed; left: 24px; bottom: 24px; z-index: 20;
+  width: 330px; max-width: calc(100vw - 48px);
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 16px; background: var(--paper); border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(34, 30, 24, 0.16), 0 1px 3px rgba(34, 30, 24, 0.1);
+  animation: nudge-in 340ms var(--ease-out);
+}
+@keyframes nudge-in { from { transform: translateY(18px); opacity: 0; } to { transform: none; opacity: 1; } }
+.nudge-tag { width: 36px; height: 28px; flex: none; margin-top: 2px; }
+.nudge-body p { margin: 0; }
+.nudge-sub { color: var(--ink-2); font-size: 15px; }
+.nudge-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Rail badge */
+.nav-item { display: flex; align-items: center; justify-content: space-between; }
+.badge {
+  min-width: 22px; padding: 0 7px; border-radius: 11px; font-size: 13px; font-weight: 700; line-height: 22px; text-align: center;
+  background: var(--tag); color: var(--tag-ink);
+}
+.nav-item[aria-current='page'] .badge { background: var(--tag-ink); color: var(--tag); }

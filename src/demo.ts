@@ -44,11 +44,19 @@ const allData: TxRow[] = [
   ...monthRows('2026-10', 1.12),
   tx('2026-10', '30', 'ריהוט הבית', 'other', 1290),
   tx('2026-10', '03', 'קפה ליד הבית', 'restaurants', 42),
+  tx('2026-10', '11', 'חומוס נרי', 'other', 278),
+  tx('2026-10', '17', 'גאזטה בר - יין בע"מ', 'other', 155),
+  tx('2026-10', '19', 'טאקריה', 'other', 94),
+  tx('2026-10', '21', 'טאקריה', 'other', 61),
+  tx('2026-10', '24', 'ויטרינה', 'other', 72),
+  tx('2026-10', '26', 'HARIM בייקרי', 'other', 158),
   tx('2026-10', '03', 'קפה ליד הבית', 'restaurants', 42),
 ];
 
 /** One recurring charge is missing in September, so the demo shows a hole. */
 const data = allData.filter((t) => !(t.merchant === 'APPLE.COM/BILL' && t.chargeDate?.startsWith('2026-09')));
+
+const reviewed = new Set<string>();
 
 const budgets: Budget[] = [{ categoryKey: 'groceries', monthlyAmount: 700 }, { categoryKey: 'restaurants', monthlyAmount: 300 }];
 
@@ -62,6 +70,27 @@ export const demoApi: PayMateApi = {
     return monthsDesc().slice().reverse().map((m) => ({ month: m, total: rowsOf(m).reduce((s, t) => s + t.chargedAmount, 0) }));
   },
   async recurringTimeline() { return recurringTimeline(data, 6); },
+  async unknownMerchants(month) {
+    await sleep();
+    const m = new Map<string, { merchant: string; count: number; total: number; firstDate: string; lastDate: string }>();
+    for (const t of rowsOf(month)) {
+      if (t.categoryKey !== 'other' || reviewed.has(t.merchant)) continue;
+      const e = m.get(t.merchant) ?? { merchant: t.merchant, count: 0, total: 0, firstDate: t.purchaseDate, lastDate: t.purchaseDate };
+      e.count++; e.total += t.chargedAmount;
+      if (t.purchaseDate < e.firstDate) e.firstDate = t.purchaseDate;
+      if (t.purchaseDate > e.lastDate) e.lastDate = t.purchaseDate;
+      m.set(t.merchant, e);
+    }
+    return [...m.values()].sort((a, b) => b.total - a.total);
+  },
+  async mapMerchant(merchant, key) {
+    if (key === 'other') { reviewed.add(merchant); return; }
+    for (const t of data) if (t.merchant === merchant) t.categoryKey = key;
+  },
+  async undoMapMerchant(merchant) {
+    reviewed.delete(merchant);
+    for (const t of data) if (t.merchant === merchant) t.categoryKey = 'other';
+  },
   async lastUpdate() { return { at: new Date(Date.now() - 3 * 86_400_000).toISOString(), source: 'sync' as const }; },
   async categories() { return categories; },
   async transactions(month) { await sleep(); return rowsOf(month); },

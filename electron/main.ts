@@ -2,9 +2,9 @@ import { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } from 'elec
 import { autoUpdater } from 'electron-updater';
 import { join, basename } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
-import { openDb, importStatement, setCategory, type Db } from './db/db';
+import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, type Db } from './db/db';
 import {
-  listMonths, lastUpdate, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget,
+  listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget,
 } from './db/queries';
 import { parseIsracardFile } from './sources/excel/isracard';
 import { mapAccounts, failureFromErrorType, failureMessage, type ScrapedAccount } from './sources/sync/map';
@@ -138,6 +138,12 @@ function registerIpc() {
   });
   ipcMain.handle('months', () => listMonths(db));
   ipcMain.handle('lastUpdate', () => lastUpdate(db));
+  ipcMain.handle('unknownMerchants', (_e, month: string) => unknownMerchants(db, month));
+  ipcMain.handle('mapMerchant', (_e, merchant: string, key: string) => {
+    if (key === 'other') keepMerchantAsOther(db, merchant);
+    else assignMerchant(db, merchant, key);
+  });
+  ipcMain.handle('undoMapMerchant', (_e, merchant: string) => undoMerchant(db, merchant));
   ipcMain.handle('monthTotals', () => monthTotals(db));
   ipcMain.handle('recurringTimeline', () => recurringTimelineRows(db));
   ipcMain.handle('categories', () => listCategories(db));
