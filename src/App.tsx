@@ -9,6 +9,7 @@ import { Insights } from './pages/Insights';
 import { Budgets } from './pages/Budgets';
 import { ImportPage } from './pages/ImportPage';
 import { Mapping } from './pages/Mapping';
+import { AccentPicker } from './components/AccentPicker';
 import { MappingNudge } from './components/MappingNudge';
 
 export type PageId = 'overview' | 'transactions' | 'insights' | 'budgets' | 'mapping' | 'settings';
@@ -106,10 +107,7 @@ export function App() {
     <div className="app">
       <nav className="rail" aria-label="ניווט ראשי">
         <div className="brand">
-          <svg className="brand-tag" viewBox="0 0 28 22" aria-hidden="true">
-            <path d="M0 11 8 0h20v22H8z" fill="currentColor" />
-            <circle cx="9" cy="11" r="2" fill="#2a2620" />
-          </svg>
+          <AccentPicker />
           PayMate
         </div>
         {NAV.map((n) => (
