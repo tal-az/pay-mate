@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('paymate', {
   summary: (month: string) => call('summary', month),
   transactions: (month: string) => call('transactions', month),
   categories: () => call('categories'),
+  addCategory: (name: string, color: string) => call('addCategory', name, color),
   setCategory: (id: string, key: string, all: boolean) => call('setCategory', id, key, all),
   insights: (month: string) => call('insights', month),
   budgets: () => call('budgets'),

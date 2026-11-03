@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import { ils, monthLabel, shortDate } from '../format';
+import { AddCategory } from '../components/AddCategory';
 import { blip, burst, reducedMotion, shower, type Particle } from '../fx';
 import type { UnknownMerchant } from '../../shared/api';
 import type { Shared } from '../App';
@@ -70,6 +71,7 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
   const [feedback, setFeedback] = useState('');
   const [streak, setStreak] = useState(0);
   const [best, setBest] = useState(0);
+  const [adding, setAdding] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [fly, setFly] = useState({ x: -90, r: -5 });
   const [muted, setMuted] = useState(() => {
@@ -190,7 +192,11 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const i = e.key === '0' ? 9 : Number(e.key) - 1;
+      if (e.key === '0') {
+        void choose('other');
+        return;
+      }
+      const i = Number(e.key) - 1;
       if (Number.isInteger(i) && i >= 0 && i < choices.length) void choose(choices[i].key);
     }
     window.addEventListener('keydown', onKey);
@@ -291,13 +297,24 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
           >
             <span className="dot" style={{ background: c.color }} />
             <span>{c.name}</span>
-            <kbd>{i === 9 ? 0 : i + 1}</kbd>
+            {i < 9 && <kbd>{i + 1}</kbd>}
           </button>
         ))}
+        <button className="mchip mchip-add" onClick={() => setAdding(true)} disabled={!!leaving || adding}>
+          <span className="dot" aria-hidden="true">+</span>
+          <span>קטגוריה חדשה</span>
+        </button>
       </div>
+      {adding && (
+        <AddCategory
+          used={categories.map((c) => c.color.toLowerCase())}
+          onCancel={() => setAdding(false)}
+          onAdded={() => { setAdding(false); setFeedback('הקטגוריה נוספה.'); refresh(); }}
+        />
+      )}
 
       <div className="mactions">
-        <button className="btn" onClick={() => void choose('other')} disabled={!!leaving}>להשאיר באחר</button>
+        <button className="btn" onClick={() => void choose('other')} disabled={!!leaving}>להשאיר באחר <kbd className="mkbd">0</kbd></button>
         <button className="btn" onClick={skip} disabled={!!leaving || queue.length < 2}>לדלג</button>
         <button className="btn" onClick={() => void undo()} disabled={!!leaving || history.length === 0}>ביטול</button>
         <p className="mfeedback" role="status">{feedback}</p>

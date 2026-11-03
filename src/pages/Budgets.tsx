@@ -3,8 +3,10 @@ import { api } from '../api';
 import { ils, monthLabel } from '../format';
 import type { Budget, MonthSummary } from '../../shared/api';
 import type { Shared } from '../App';
+import { AddCategory } from '../components/AddCategory';
 
-export function Budgets({ month, categories }: Shared) {
+export function Budgets({ month, categories, refresh }: Shared) {
+  const [adding, setAdding] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [summary, setSummary] = useState<MonthSummary | null>(null);
 
@@ -57,6 +59,17 @@ export function Budgets({ month, categories }: Shared) {
           </div>
         );
       })}
+      <div style={{ marginTop: 20 }}>
+        {adding ? (
+          <AddCategory
+            used={categories.map((c) => c.color.toLowerCase())}
+            onCancel={() => setAdding(false)}
+            onAdded={() => { setAdding(false); refresh(); }}
+          />
+        ) : (
+          <button className="btn" onClick={() => setAdding(true)}>+ קטגוריה חדשה</button>
+        )}
+      </div>
     </>
   );
 }

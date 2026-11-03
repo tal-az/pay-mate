@@ -1,12 +1,12 @@
 import { join } from 'node:path';
-import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant } from '../../electron/db/db';
+import { openDb, addCategory, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant } from '../../electron/db/db';
 import {
-  allTransactions, lastUpdate, listBudgets, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
+  allTransactions, lastUpdate, listCategories, listBudgets, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
 } from '../../electron/db/queries';
 import { exportData, restoreData } from '../../electron/db/backup';
 import * as web from '../../src/web/logic';
 import { emptyData, type BackupData } from '../../shared/backup';
-import type { Budget, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
+import type { Budget, Category, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
 import type { ParsedStatement, ParsedTransaction, Source } from '../../shared/types';
 
 /** The same operations on both implementations: the desktop's SQLite and the website's plain document. */
@@ -17,6 +17,8 @@ export interface Store {
   keepMerchantAsOther(merchant: string): void;
   undoMerchant(merchant: string): void;
   setBudget(key: string, amount: number | null): void;
+  addCategory(name: string, color: string): Category;
+  categories(): Category[];
   unknownMerchants(month: string): UnknownMerchant[];
   monthTransactions(month: string): TxRow[];
   allTransactions(): TxRow[];
@@ -37,6 +39,8 @@ export function sqliteStore(): Store {
     keepMerchantAsOther: (m) => keepMerchantAsOther(db, m),
     undoMerchant: (m) => undoMerchant(db, m),
     setBudget: (k, a) => setBudget(db, k, a),
+    addCategory: (n, c) => addCategory(db, n, c),
+    categories: () => listCategories(db),
     unknownMerchants: (m) => unknownMerchants(db, m),
     monthTransactions: (m) => monthTransactions(db, m),
     allTransactions: () => allTransactions(db),
@@ -58,6 +62,8 @@ export function webStore(): Store {
     keepMerchantAsOther: (m) => web.keepMerchantAsOther(data, m),
     undoMerchant: (m) => web.undoMerchant(data, m),
     setBudget: (k, a) => web.setBudget(data, k, a),
+    addCategory: (n, c) => web.addCategory(data, n, c),
+    categories: () => web.categoriesOf(data),
     unknownMerchants: (m) => web.unknownMerchants(data, m),
     monthTransactions: (m) => web.monthTransactions(data, m),
     allTransactions: () => web.allTransactions(data),

@@ -1,4 +1,4 @@
-import { CATEGORY_SEEDS, categorize, type UserRule } from '../../shared/core/categorize';
+import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
 import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
 import type { BackupData, BackupRule, BackupTransaction } from '../../shared/backup';
 import type {
@@ -12,12 +12,19 @@ import type { ParsedStatement, Source } from '../../shared/types';
  * whether the change is kept (see idb.ts, which writes it back in one transaction or not at all).
  */
 
-const KEYS = new Set(CATEGORY_SEEDS.map((c) => c.key));
+/** The built-in categories followed by the ones the user made. */
+export function categoriesOf(data: BackupData): Category[] {
+  return [...CATEGORY_SEEDS, ...data.categories].map((c, i) => ({ id: i + 1, key: c.key, name: c.name, color: c.color }));
+}
 
-export const categories: Category[] = CATEGORY_SEEDS.map((c, i) => ({ id: i + 1, key: c.key, name: c.name, color: c.color }));
+export function addCategory(data: BackupData, name: string, color: string): Category {
+  const c = makeCategory(name, color, categoriesOf(data));
+  data.categories.push(c);
+  return { id: CATEGORY_SEEDS.length + data.categories.length, ...c };
+}
 
-function requireCategory(key: string) {
-  if (!KEYS.has(key)) throw new Error(`unknown category ${key}`);
+function requireCategory(data: BackupData, key: string) {
+  if (!categoriesOf(data).some((c) => c.key === key)) throw new Error(`unknown category ${key}`);
 }
 
 const byLengthDesc = (a: BackupRule, b: BackupRule) => b.pattern.length - a.pattern.length;
@@ -58,7 +65,7 @@ export function importStatement(data: BackupData, stmt: ParsedStatement, label: 
 
 /** Sets a category by hand and, optionally, remembers it for every transaction from that business. */
 export function setCategory(data: BackupData, txId: string, categoryKey: string, applyToMerchant: boolean) {
-  requireCategory(categoryKey);
+  requireCategory(data, categoryKey);
   const tx = data.transactions.find((t) => t.id === txId);
   if (!tx) throw new Error('transaction not found');
   if (applyToMerchant) {
@@ -71,7 +78,7 @@ export function setCategory(data: BackupData, txId: string, categoryKey: string,
 
 /** Maps every charge from this business, in all months, to a category, and remembers it for future imports. Returns how many charges changed. */
 export function assignMerchant(data: BackupData, merchant: string, categoryKey: string): number {
-  requireCategory(categoryKey);
+  requireCategory(data, categoryKey);
   upsertRule(data, merchant.toLowerCase(), categoryKey);
   data.reviews = data.reviews.filter((r) => r.merchantKey !== merchant);
   let changed = 0;
@@ -99,7 +106,7 @@ export function undoMerchant(data: BackupData, merchant: string) {
 }
 
 export function setBudget(data: BackupData, categoryKey: string, monthlyAmount: number | null) {
-  requireCategory(categoryKey);
+  requireCategory(data, categoryKey);
   data.budgets = data.budgets.filter((b) => b.categoryKey !== categoryKey);
   if (monthlyAmount != null && monthlyAmount > 0) data.budgets.push({ categoryKey, monthlyAmount });
 }
@@ -180,6 +187,7 @@ export function monthSummary(data: BackupData, month: string): MonthSummary {
   const prevMonth = listMonths(data).filter((m) => m < month)[0] ?? null;
   const prevTotal = prevMonth ? monthTransactions(data, prevMonth).reduce((s, t) => s + t.chargedAmount, 0) : null;
 
+  const categories = categoriesOf(data);
   const byCat = new Map<string, CategoryTotal>();
   const byMerchant = new Map<string, MerchantTotal>();
   for (const t of rows) {
@@ -210,7 +218,7 @@ export function monthInsights(data: BackupData, month: string): Insight[] {
     month,
     prevMonth: listMonths(data).filter((m) => m < month)[0] ?? null,
     all: allTransactions(data),
-    categoryNames: Object.fromEntries(categories.map((c) => [c.key, c.name])),
+    categoryNames: Object.fromEntries(categoriesOf(data).map((c) => [c.key, c.name])),
   });
 }
 

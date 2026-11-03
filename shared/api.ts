@@ -163,6 +163,8 @@ export interface PayMateApi {
   summary(month: string): Promise<MonthSummary>;
   transactions(month: string): Promise<TxRow[]>;
   categories(): Promise<Category[]>;
+  /** Creates a category of the user's own. Rejects with a Hebrew message when the name is empty, too long or taken. */
+  addCategory(name: string, color: string): Promise<Category>;
   setCategory(txId: string, categoryKey: string, applyToMerchant: boolean): Promise<void>;
   insights(month: string): Promise<Insight[]>;
   budgets(): Promise<Budget[]>;

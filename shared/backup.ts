@@ -1,4 +1,4 @@
-import { CATEGORY_SEEDS } from './core/categorize';
+import { HEX_COLOR, MAX_CATEGORY_NAME, SEED_KEYS } from './core/categorize';
 import type { Source } from './types';
 
 /**
@@ -37,6 +37,13 @@ export interface BackupRule {
   origin: string;
 }
 
+/** A category the user made; the built-in ones are not stored. */
+export interface BackupCategory {
+  key: string;
+  name: string;
+  color: string;
+}
+
 export interface BackupReview {
   merchantKey: string;
   decidedAt: string;
@@ -57,6 +64,7 @@ export interface BackupImport {
 
 /** Everything the app stores. The website keeps exactly this document in IndexedDB. */
 export interface BackupData {
+  categories: BackupCategory[];
   transactions: BackupTransaction[];
   rules: BackupRule[];
   reviews: BackupReview[];
@@ -70,7 +78,7 @@ export interface Backup extends BackupData {
   exportedAt: string;
 }
 
-export const emptyData = (): BackupData => ({ transactions: [], rules: [], reviews: [], budgets: [], imports: [] });
+export const emptyData = (): BackupData => ({ categories: [], transactions: [], rules: [], reviews: [], budgets: [], imports: [] });
 
 export function makeBackup(data: BackupData): Backup {
   return { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), ...data };
@@ -78,7 +86,6 @@ export function makeBackup(data: BackupData): Backup {
 
 export class BackupError extends Error {}
 
-const CATEGORY_KEYS = new Set(CATEGORY_SEEDS.map((c) => c.key));
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type Obj = Record<string, unknown>;
@@ -108,7 +115,7 @@ const num = (o: Obj, k: string, where: string): number => {
 const flag = (o: Obj, k: string): boolean => o[k] === true || o[k] === 1;
 const source = (o: Obj): Source => (o.source === 'sync' ? 'sync' : 'excel');
 /** A category this version doesn't know (from a newer app) falls back to "other". */
-const knownKey = (k: unknown): string => (typeof k === 'string' && CATEGORY_KEYS.has(k) ? k : 'other');
+const knownKey = (k: unknown, keys: Set<string>): string => (typeof k === 'string' && keys.has(k) ? k : 'other');
 
 /** Validates a backup file. Throws BackupError with a Hebrew message; never returns partial data. */
 export function parseBackup(raw: string): BackupData {
@@ -122,6 +129,17 @@ export function parseBackup(raw: string): BackupData {
   if (typeof root.version !== 'number' || root.version > BACKUP_VERSION) {
     throw new BackupError('הגיבוי נוצר בגרסה חדשה יותר של PayMate. עדכנו את האפליקציה ונסו שוב.');
   }
+
+  const customs = new Map<string, BackupCategory>();
+  list(root, 'categories').forEach((item, i) => {
+    const o = obj(item, `קטגוריה ${i + 1}`);
+    const key = text(o, 'key', `קטגוריה ${i + 1}`);
+    const name = text(o, 'name', `קטגוריה ${i + 1}`).trim().slice(0, MAX_CATEGORY_NAME);
+    const color = text(o, 'color', `קטגוריה ${i + 1}`);
+    if (SEED_KEYS.has(key) || !name || !HEX_COLOR.test(color)) return;
+    customs.set(key, { key, name, color });
+  });
+  const CATEGORY_KEYS = new Set([...SEED_KEYS, ...customs.keys()]);
 
   const seen = new Set<string>();
   const transactions: BackupTransaction[] = [];
@@ -151,7 +169,7 @@ export function parseBackup(raw: string): BackupData {
       foreignSite: flag(o, 'foreignSite'),
       discount: typeof o.discount === 'number' && Number.isFinite(o.discount) ? o.discount : 0,
       details: textOr(o, 'details', ''),
-      categoryKey: knownKey(o.categoryKey),
+      categoryKey: knownKey(o.categoryKey, CATEGORY_KEYS),
       categoryLocked: flag(o, 'categoryLocked'),
       source: source(o),
     });
@@ -192,5 +210,5 @@ export function parseBackup(raw: string): BackupData {
     };
   });
 
-  return { transactions, rules: [...rules.values()], reviews: [...reviews.values()], budgets: [...budgets.values()], imports };
+  return { categories: [...customs.values()], transactions, rules: [...rules.values()], reviews: [...reviews.values()], budgets: [...budgets.values()], imports };
 }
