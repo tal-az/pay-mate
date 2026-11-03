@@ -61,7 +61,7 @@ Git-connected build: set the build command to `npm ci && npm run build:web` and 
 - **Data belongs to the exact site address.** Moving from `*.workers.dev` to a custom domain, or opening a preview URL, starts empty. Choose the final address before importing, or carry data across with a backup file.
 - **Clearing the site's data erases it.** The site asks the browser to keep its storage when it is low on space, but nothing guarantees it. Download a backup from time to time.
 - **It does not sync** between browsers or devices. Use a backup file to move data.
-- **It is not encrypted** on disk, and neither are backup files.
+- **Browser storage is not encrypted** on disk. Backup files are: see below.
 
 ## Backup file
 
@@ -69,6 +69,8 @@ One JSON file (`paymate-backup`, version 1) is understood by both targets, so da
 
 - Restoring **replaces** everything; it does not merge. A file that is not a valid backup changes nothing.
 - It stores category keys, not database ids, and every field both sides need: hand-set categories, the businesses you mapped, ones you chose to leave as "other", budgets and the import history.
+- **New backups are always encrypted with a password** the user chooses (at least 8 characters). The password is never stored and cannot be recovered. Only the password is needed to restore: the key is derived from it again, using the salt kept in the file. The format (`paymate-backup-encrypted`, version 1) is in `shared/backupCrypto.ts`: PBKDF2-HMAC-SHA-256 (600,000 iterations, random salt) derives an AES-256-GCM key, with a random IV per file. GCM authenticates the data, so a wrong password and a tampered file are both refused. Encryption runs in the interface, so the password never reaches the desktop app's main process.
+- Old unencrypted backups can still be restored.
 - A backup from a newer PayMate is refused with a message. A category an older version does not know becomes "other".
 
 ## Layout
