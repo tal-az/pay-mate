@@ -190,7 +190,11 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const i = e.key === '0' ? 9 : Number(e.key) - 1;
+      if (e.key === '0') {
+        void choose('other');
+        return;
+      }
+      const i = Number(e.key) - 1;
       if (Number.isInteger(i) && i >= 0 && i < choices.length) void choose(choices[i].key);
     }
     window.addEventListener('keydown', onKey);
@@ -291,13 +295,13 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
           >
             <span className="dot" style={{ background: c.color }} />
             <span>{c.name}</span>
-            <kbd>{i === 9 ? 0 : i + 1}</kbd>
+            {i < 9 && <kbd>{i + 1}</kbd>}
           </button>
         ))}
       </div>
 
       <div className="mactions">
-        <button className="btn" onClick={() => void choose('other')} disabled={!!leaving}>להשאיר באחר</button>
+        <button className="btn" onClick={() => void choose('other')} disabled={!!leaving}>להשאיר באחר <kbd className="mkbd">0</kbd></button>
         <button className="btn" onClick={skip} disabled={!!leaving || queue.length < 2}>לדלג</button>
         <button className="btn" onClick={() => void undo()} disabled={!!leaving || history.length === 0}>ביטול</button>
         <p className="mfeedback" role="status">{feedback}</p>

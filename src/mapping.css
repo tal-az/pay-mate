@@ -142,3 +142,5 @@
   background: var(--tag); color: var(--tag-ink);
 }
 .nav-item[aria-current='page'] .badge { background: var(--tag-ink); color: var(--tag); }
+
+.mkbd { font: inherit; font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; margin-inline-start: 6px; }
