@@ -23,9 +23,9 @@ export function Dashboard({ month, months, go, selectMonth }: Shared) {
     return (
       <div className="empty">
         <h2>עוד אין כאן נתונים</h2>
-        <p>ייבאו את פירוט העסקאות החודשי מאתר ישראכארט כדי לראות לאן הלך הכסף.</p>
+        <p>סנכרנו את כרטיס האשראי, או ייבאו קובץ של ישראכארט, כדי לראות לאן הלך הכסף.</p>
         <p style={{ marginTop: 20 }}>
-          <button className="btn primary" onClick={() => go('settings')}>ייבוא קובץ</button>
+          <button className="btn primary" onClick={() => go('settings')}>סנכרון או ייבוא</button>
         </p>
       </div>
     );

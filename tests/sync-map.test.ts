@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import ExcelJS from 'exceljs';
-import { mapAccount, failureFromErrorType } from '../electron/sources/sync/map';
+import { mapAccount, failureFromErrorType, failureMessage } from '../electron/sources/sync/map';
 import { parseIsracardWorkbook } from '../electron/sources/excel/isracard';
 import { openDb, importStatement } from '../electron/db/db';
 
@@ -26,7 +26,7 @@ const account = {
 };
 
 describe('mapAccount', () => {
-  const stmt = mapAccount(account);
+  const stmt = mapAccount(account, 'isracard');
 
   it('turns spending into positive amounts and refunds into negative ones', () => {
     expect(stmt.transactions.map((t) => t.chargedAmount)).toEqual([39.9, 2.06, -25]);
@@ -57,7 +57,58 @@ describe('mapAccount', () => {
 
     const db = openDb(':memory:', join(__dirname, '../electron/db'));
     expect(importStatement(db, excel, 'f.xlsx', 'excel').added).toBe(1);
-    expect(importStatement(db, mapAccount({ accountNumber: '1958', txns: [account.txns[0]] }), 'sync', 'sync')).toEqual({ added: 0, skipped: 1 });
+    expect(importStatement(db, mapAccount({ accountNumber: '1958', txns: [account.txns[0]] }, 'isracard'), 'sync', 'sync')).toEqual({ added: 0, skipped: 1 });
+  });
+});
+
+describe('other card companies', () => {
+  const txn = {
+    identifier: 'A1', date: '2026-09-09T00:00:00.000Z', processedDate: '2026-10-02T00:00:00.000Z',
+    originalAmount: -100, originalCurrency: 'ILS', chargedAmount: -100, description: 'חנות', memo: '',
+  };
+
+  it('keeps each company in its own ids', () => {
+    const max = mapAccount({ accountNumber: '1958', txns: [txn] }, 'max');
+    expect(max.company).toBe('max');
+    expect(max.transactions[0].company).toBe('max');
+    expect(max.transactions[0].id).toBe('max:1958:A1');
+    expect(mapAccount({ accountNumber: '1958', txns: [txn] }, 'visaCal').transactions[0].id).toBe('visaCal:1958:A1');
+  });
+
+  it('keeps Isracard ids unchanged, so data already imported still dedupes', () => {
+    const t = { ...txn, identifier: '095817883', installmentNumber: 2 };
+    expect(mapAccount({ accountNumber: '1958', txns: [t] }, 'isracard').transactions[0].id).toBe('isracard:1958:95817883');
+  });
+
+  it('skips pending charges, which have no stable identifier yet', () => {
+    const pending = { ...txn, identifier: undefined, status: 'pending' };
+    const done = { ...txn, status: 'completed' };
+    expect(mapAccount({ accountNumber: '1958', txns: [pending, done] }, 'visaCal').transactions.map((t) => t.id)).toEqual(['visaCal:1958:A1']);
+  });
+
+  it('gives each payment of an installment deal its own id', () => {
+    const txns = [{ ...txn, installmentNumber: 1 }, { ...txn, installmentNumber: 2 }];
+    expect(mapAccount({ accountNumber: '1958', txns }, 'visaCal').transactions.map((t) => t.id)).toEqual(['visaCal:1958:A1:1', 'visaCal:1958:A1:2']);
+  });
+
+  it('treats a refund as a refund when the charge has the opposite sign', () => {
+    const refund = { ...txn, originalAmount: 40, chargedAmount: -40 };
+    expect(mapAccount({ accountNumber: '1958', txns: [refund] }, 'visaCal').transactions[0].chargedAmount).toBe(-40);
+  });
+});
+
+describe('failureMessage', () => {
+  it('names the fields and the site of the chosen company', () => {
+    expect(failureMessage('credentials', 'max')).toContain('שם משתמש');
+    expect(failureMessage('credentials', 'max')).not.toContain('תעודת זהות');
+    expect(failureMessage('credentials', 'isracard')).toContain('6 ספרות אחרונות');
+    expect(failureMessage('blocked', 'visaCal')).toContain('כאל');
+    expect(failureMessage('password-change', 'amex')).toContain('אמריקן אקספרס');
+  });
+
+  it('still reads properly without a company', () => {
+    expect(failureMessage('unknown')).toBe('הסנכרון נכשל. אפשר לייבא קובץ Excel בינתיים.');
+    expect(failureMessage('blocked')).toContain('חברת האשראי');
   });
 });
 

@@ -1,3 +1,5 @@
+import type { ProviderKey } from './providers';
+
 export interface Category {
   id: number;
   key: string;
@@ -99,9 +101,9 @@ export interface ImportResult {
 }
 
 export interface SyncRequest {
-  id: string;
-  card6Digits: string;
-  password: string;
+  company: ProviderKey;
+  /** The login fields of the chosen company, by field name. */
+  credentials: Record<string, string>;
   months: number;
 }
 

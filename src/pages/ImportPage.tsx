@@ -2,9 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { monthLabel } from '../format';
 import type { ImportResult, SyncResult } from '../../shared/api';
+import { PROVIDERS, findProvider, type ProviderKey } from '../../shared/providers';
 import type { Shared } from '../App';
 
+const COMPANY_KEY = 'paymate.syncCompany';
+
+/** Only the company's name is remembered, for convenience. Credentials are never saved. */
+function loadCompany(): ProviderKey | null {
+  try {
+    return findProvider(localStorage.getItem(COMPANY_KEY))?.key ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCompany(key: ProviderKey) {
+  try {
+    localStorage.setItem(COMPANY_KEY, key);
+  } catch {
+    // Without storage the choice just isn't remembered.
+  }
+}
+
 export function ImportPage({ refresh, notify }: Shared) {
+  const [company, setCompany] = useState<ProviderKey | null>(loadCompany);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncProgress, setSyncProgress] = useState('');
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
@@ -14,13 +35,25 @@ export function ImportPage({ refresh, notify }: Shared) {
   useEffect(() => api.onSyncProgress(setSyncProgress), []);
   useEffect(() => { void api.appVersion().then(setVersion); }, []);
 
+  const provider = findProvider(company);
+
+  function chooseCompany(key: ProviderKey) {
+    if (key === company) return;
+    setCompany(key);
+    saveCompany(key);
+    setSyncResult(null);
+  }
+
   async function runSync(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!provider) return;
     const form = new FormData(e.currentTarget);
     const request = {
-      id: String(form.get('id') ?? '').trim(),
-      card6Digits: String(form.get('card') ?? '').trim(),
-      password: String(form.get('password') ?? ''),
+      company: provider.key,
+      credentials: Object.fromEntries(provider.fields.map((f) => {
+        const value = String(form.get(f.name) ?? '');
+        return [f.name, f.secret ? value : value.trim()];
+      })),
       months: Number(form.get('months')),
     };
     setSyncBusy(true);
@@ -70,20 +103,40 @@ export function ImportPage({ refresh, notify }: Shared) {
 
 
       <section className="section" style={{ marginTop: 20 }}>
-        <h2 className="section-title">סנכרון מאתר ישראכארט</h2>
-        <form ref={formRef} className="sync-form" onSubmit={runSync} autoComplete="off">
-          <label>
-            תעודת זהות
-            <input className="field" name="id" inputMode="numeric" required disabled={syncBusy} />
-          </label>
-          <label>
-            6 ספרות אחרונות של הכרטיס
-            <input className="field" name="card" inputMode="numeric" maxLength={6} pattern="\d{6}" required disabled={syncBusy} />
-          </label>
-          <label>
-            סיסמה לאתר
-            <input className="field" name="password" type="password" required disabled={syncBusy} autoComplete="new-password" />
-          </label>
+        <h2 className="section-title">סנכרון מאתר חברת האשראי</h2>
+        <div className="provider-choice" role="group" aria-label="חברת האשראי">
+          {PROVIDERS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className="provider-chip"
+              aria-pressed={p.key === company}
+              disabled={syncBusy}
+              onClick={() => chooseCompany(p.key)}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+        {!provider && <p className="help">בחרו את חברת האשראי של הכרטיס.</p>}
+        {provider && <>
+        <form key={provider.key} ref={formRef} className="sync-form" onSubmit={runSync} autoComplete="off">
+          {provider.fields.map((f) => (
+            <label key={f.name}>
+              {f.label}
+              <input
+                className="field"
+                name={f.name}
+                type={f.secret ? 'password' : 'text'}
+                inputMode={f.numeric ? 'numeric' : undefined}
+                maxLength={f.length}
+                pattern={f.length ? `\\d{${f.length}}` : undefined}
+                required
+                disabled={syncBusy}
+                autoComplete={f.secret ? 'new-password' : 'off'}
+              />
+            </label>
+          ))}
           <label>
             כמה חודשים אחורה
             <select className="field" name="months" defaultValue="3" disabled={syncBusy}>
@@ -96,8 +149,9 @@ export function ImportPage({ refresh, notify }: Shared) {
           <button className="btn primary" type="submit" disabled={syncBusy}>{syncBusy ? 'מסנכרן…' : 'סנכרון'}</button>
         </form>
         <p className="help" style={{ marginTop: 10 }}>
-          הפרטים נשלחים רק לאתר ישראכארט, לא נשמרים ולא נרשמים בשום מקום, ותצטרכו להקליד אותם בכל סנכרון.
+          הפרטים נשלחים רק לאתר {provider.name}, לא נשמרים ולא נרשמים בשום מקום, ותצטרכו להקליד אותם בכל סנכרון.
         </p>
+        </>}
         <div aria-live="polite">
           {syncBusy && <p className="help" style={{ marginTop: 10 }}>{syncProgress}</p>}
           {syncResult && (
@@ -116,7 +170,7 @@ export function ImportPage({ refresh, notify }: Shared) {
       </section>
 
       <section className="section">
-        <h2 className="section-title">או ייבוא מקובץ</h2>
+        <h2 className="section-title">או ייבוא מקובץ של ישראכארט</h2>
         <div
           className={`drop ${over ? 'over' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}
@@ -161,7 +215,7 @@ export function ImportPage({ refresh, notify }: Shared) {
 
       <section className="section">
         <h2 className="section-title">פרטיות</h2>
-        <p className="help">כל הנתונים נשמרים בקובץ במחשב הזה בלבד. בסנכרון, האפליקציה מתחברת רק לאתר ישראכארט.</p>
+        <p className="help">כל הנתונים נשמרים בקובץ במחשב הזה בלבד. בסנכרון, האפליקציה מתחברת רק לאתר של חברת האשראי שבחרתם.</p>
         <p className="help">אם הסנכרון לא עובד, למשל אחרי שינוי באתר, ייבוא מקובץ תמיד זמין.</p>
         <p className="help">האפליקציה בודקת עדכונים בכל פתיחה, ואחרי סנכרון שנכשל. עדכון מגיע רק מהגרסאות של PayMate. גרסה נוכחית: {version}</p>
       </section>

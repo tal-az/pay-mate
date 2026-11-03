@@ -218,6 +218,15 @@ input.money { width: 120px; text-align: left; }
 .sync-form label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
 .sync-form .field { color: var(--ink); width: 100%; min-width: 0; }
 .btn:disabled { cursor: default; opacity: 0.6; }
+.provider-choice { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.provider-chip {
+  min-height: 44px; padding: 8px 18px; font: inherit; font-weight: 600; cursor: pointer;
+  color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.provider-chip:hover:not(:disabled) { border-color: var(--ink); }
+.provider-chip[aria-pressed='true'] { background: var(--tag); color: var(--tag-ink); border-color: var(--tag); }
+.provider-chip:disabled { cursor: default; opacity: 0.6; }
 
 /* Import */
 .drop {

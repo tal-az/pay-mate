@@ -9,6 +9,7 @@ import {
 import { parseIsracardFile } from './sources/excel/isracard';
 import { mapAccounts, failureFromErrorType, failureMessage, type ScrapedAccount } from './sources/sync/map';
 import type { ImportResult, SyncRequest, SyncResult, SyncFailure } from '../shared/api';
+import { findProvider, type ProviderKey } from '../shared/providers';
 
 let db: Db;
 let syncing = false;
@@ -74,13 +75,14 @@ interface WorkerDone {
 
 const SYNC_TIMEOUT_MS = 5 * 60_000;
 
-function fail(failure: SyncFailure): SyncResult {
-  return { ok: false, failure, message: failureMessage(failure) };
+function fail(failure: SyncFailure, company?: ProviderKey): SyncResult {
+  return { ok: false, failure, message: failureMessage(failure, company) };
 }
 
 /** Credentials live only in this call and the worker's memory. They are never stored or logged. */
 async function runSync(request: SyncRequest, progress: (m: string) => void): Promise<SyncResult> {
-  if (syncing) return fail('unknown');
+  const provider = findProvider(request.company);
+  if (syncing || !provider) return fail('unknown');
   const executablePath = BROWSER_CANDIDATES.find((p) => existsSync(p));
   if (!executablePath) return fail('no-browser');
   syncing = true;
@@ -96,10 +98,10 @@ async function runSync(request: SyncRequest, progress: (m: string) => void): Pro
       child.postMessage({ type: 'start', request, executablePath });
     });
     if (!done) return fail('timeout');
-    if (!done.success || !done.accounts) return fail(failureFromErrorType(done.errorType));
+    if (!done.success || !done.accounts) return fail(failureFromErrorType(done.errorType), provider.key);
     let added = 0;
     let skipped = 0;
-    for (const stmt of mapAccounts(done.accounts)) {
+    for (const stmt of mapAccounts(done.accounts, provider.key)) {
       const r = importStatement(db, stmt, 'סנכרון אוטומטי', 'sync');
       added += r.added;
       skipped += r.skipped;
