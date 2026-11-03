@@ -105,7 +105,13 @@ export function App() {
   return (
     <div className="app">
       <nav className="rail" aria-label="ניווט ראשי">
-        <div className="brand">PayMate</div>
+        <div className="brand">
+          <svg className="brand-tag" viewBox="0 0 28 22" aria-hidden="true">
+            <path d="M0 11 8 0h20v22H8z" fill="currentColor" />
+            <circle cx="9" cy="11" r="2" fill="#2a2620" />
+          </svg>
+          PayMate
+        </div>
         {NAV.map((n) => (
           <button key={n.id} className="nav-item" aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
             <span>{n.label}</span>
