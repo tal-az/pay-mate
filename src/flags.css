@@ -1,0 +1,39 @@
+/* Flags on transactions and the open-tasks page. Kind colours: suspicious = tomato, mistake = focus blue, attention = the accent. */
+.flag-btn, .flag-chip {
+  font: inherit; font-size: 12px; cursor: pointer; border-radius: 6px; padding: 1px 7px; margin-inline-start: 8px; white-space: nowrap;
+  background: transparent; color: var(--ink-2); border: 1px dashed var(--line);
+}
+.flag-btn { opacity: 0.6; }
+tr:hover .flag-btn, .flag-btn:focus-visible { opacity: 1; }
+.flag-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+.flag-chip { border-style: solid; color: var(--ink); }
+.flag-chip.suspicious { border-color: var(--tomato); color: var(--tomato); }
+.flag-chip.mistake { border-color: var(--focus); color: var(--focus); }
+.flag-chip.attention { border-color: var(--ink); background: var(--tag); color: var(--tag-ink); }
+.flag-chip.resolved { opacity: 0.55; text-decoration: line-through; }
+
+.flag-row td { background: var(--ground); }
+.flag-editor { display: flex; flex-direction: column; gap: 10px; max-width: 520px; }
+.flag-editor textarea { resize: vertical; font: inherit; }
+.flag-kinds { display: flex; gap: 8px; flex-wrap: wrap; }
+.flag-kind {
+  font: inherit; font-size: 14px; cursor: pointer; border: 2px solid var(--line); border-radius: 6px; padding: 4px 10px;
+  background: var(--paper); color: var(--ink);
+}
+.flag-kind.on { border-color: var(--ink); font-weight: 600; }
+.flag-kind.on.suspicious { background: var(--tomato); color: #fff; }
+.flag-kind.on.mistake { background: var(--focus); color: #fff; }
+.flag-kind.on.attention { background: var(--tag); color: var(--tag-ink); }
+
+.seg { display: flex; gap: 8px; }
+.seg .btn[aria-pressed='true'] { background: var(--ink); color: var(--paper); }
+
+.tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.task { background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.task.done { opacity: 0.7; }
+.task-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.task-head .flag-chip { margin-inline-start: 0; cursor: default; }
+.task-head .num { margin-inline-start: auto; }
+.task-head .date { color: var(--ink-2); }
+.task-comment { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }

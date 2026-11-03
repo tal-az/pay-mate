@@ -45,6 +45,54 @@ describe.each(stores)('%s store', (_name, open) => {
     });
   });
 
+  describe('flags', () => {
+    const flagged = () => {
+      const s = open();
+      s.importStatement(stmt([tx({ id: 'a', merchant: 'XYZ' }), tx({ id: 'b', merchant: 'ABC' })]), 'f', 'excel');
+      return s;
+    };
+
+    it('flags a transaction with a comment and shows it on the row and in the list', () => {
+      const s = flagged();
+      s.setFlag('a', 'suspicious', '  לא זיהיתי  ');
+      expect(s.allTransactions().find((t) => t.id === 'a')!.flag).toEqual({ kind: 'suspicious', resolved: false, comment: 'לא זיהיתי' });
+      expect(s.allTransactions().find((t) => t.id === 'b')!.flag).toBeUndefined();
+      expect(s.flags()).toMatchObject([{ txId: 'a', kind: 'suspicious', comment: 'לא זיהיתי', resolved: false, resolvedAt: null, merchant: 'XYZ' }]);
+    });
+
+    it('edits an existing flag without reopening it or changing when it was made', () => {
+      const s = flagged();
+      s.setFlag('a', 'attention', 'x');
+      s.resolveFlag('a', true);
+      const before = s.flags()[0];
+      s.setFlag('a', 'mistake', 'y');
+      const [after] = s.flags();
+      expect(s.flags()).toHaveLength(1);
+      expect(after).toMatchObject({ kind: 'mistake', comment: 'y', resolved: true, createdAt: before.createdAt });
+    });
+
+    it('resolves, reopens and clears', () => {
+      const s = flagged();
+      s.setFlag('a', 'attention', '');
+      s.resolveFlag('a', true);
+      expect(s.flags()[0].resolved).toBe(true);
+      expect(s.flags()[0].resolvedAt).not.toBeNull();
+      s.resolveFlag('a', false);
+      expect(s.flags()[0]).toMatchObject({ resolved: false, resolvedAt: null });
+      s.clearFlag('a');
+      expect(s.flags()).toEqual([]);
+      expect(s.allTransactions().find((t) => t.id === 'a')!.flag).toBeUndefined();
+    });
+
+    it('rejects an unknown transaction, an unknown kind and a comment that is too long', () => {
+      const s = flagged();
+      expect(() => s.setFlag('missing', 'attention', '')).toThrow();
+      expect(() => s.setFlag('a', 'nope' as never, '')).toThrow();
+      expect(() => s.setFlag('a', 'attention', 'x'.repeat(501))).toThrow(/ארוכה/);
+      expect(s.flags()).toEqual([]);
+    });
+  });
+
   describe('lastUpdate', () => {
     it('is null before any import and then reports the latest one', () => {
       const s = open();

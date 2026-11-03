@@ -1,8 +1,9 @@
 import { buildInsights, monthOf, recurringTimeline } from '../shared/core/insights';
 import { CATEGORY_SEEDS, makeCategory } from '../shared/core/categorize';
 import { emptyData, makeBackup } from '../shared/backup';
+import { MAX_FLAG_COMMENT } from '../shared/api';
 import type {
-  Budget, Category, ImportResult, MonthSummary, PayMateApi, TxRow,
+  Budget, Category, FlaggedTx, ImportResult, MonthSummary, PayMateApi, TxRow,
 } from '../shared/api';
 
 /** Synthetic data so the interface can be developed and previewed in a plain browser (open the site with ?demo). */
@@ -58,6 +59,7 @@ const allData: TxRow[] = [
 const data = allData.filter((t) => !(t.merchant === 'APPLE.COM/BILL' && t.chargeDate?.startsWith('2026-09')));
 
 const reviewed = new Set<string>();
+const flagMeta = new Map<string, { createdAt: string; resolvedAt: string | null }>();
 
 const budgets: Budget[] = [{ categoryKey: 'groceries', monthlyAmount: 700 }, { categoryKey: 'restaurants', monthlyAmount: 300 }];
 
@@ -125,6 +127,39 @@ export const demoApi: PayMateApi = {
     const t = data.find((x) => x.id === id);
     if (!t) return;
     for (const x of data) if (x.id === id || (all && x.merchant === t.merchant)) x.categoryKey = key;
+  },
+  async setFlag(id, kind, comment) {
+    const t = data.find((x) => x.id === id);
+    if (!t) return;
+    const text = comment.trim();
+    if (text.length > MAX_FLAG_COMMENT) throw new Error(`ההערה ארוכה מדי (עד ${MAX_FLAG_COMMENT} תווים)`);
+    const meta = flagMeta.get(id);
+    if (!meta) flagMeta.set(id, { createdAt: new Date().toISOString(), resolvedAt: null });
+    t.flag = { kind, comment: text, resolved: t.flag?.resolved ?? false };
+  },
+  async resolveFlag(id, resolved) {
+    const t = data.find((x) => x.id === id);
+    const meta = flagMeta.get(id);
+    if (!t?.flag || !meta) return;
+    t.flag.resolved = resolved;
+    meta.resolvedAt = resolved ? new Date().toISOString() : null;
+  },
+  async clearFlag(id) {
+    const t = data.find((x) => x.id === id);
+    if (t) delete t.flag;
+    flagMeta.delete(id);
+  },
+  async flags(): Promise<FlaggedTx[]> {
+    await sleep();
+    return data
+      .filter((t) => t.flag && flagMeta.has(t.id))
+      .map((t) => ({
+        txId: t.id, kind: t.flag!.kind, comment: t.flag!.comment, resolved: t.flag!.resolved,
+        createdAt: flagMeta.get(t.id)!.createdAt, resolvedAt: flagMeta.get(t.id)!.resolvedAt,
+        merchant: t.merchant, purchaseDate: t.purchaseDate, chargedAmount: t.chargedAmount,
+        originalAmount: t.originalAmount, originalCurrency: t.originalCurrency,
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
   async insights(month) {
     await sleep();

@@ -50,6 +50,15 @@ CREATE TABLE IF NOT EXISTS imports (
   skipped INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS tx_flags (
+  tx_id TEXT PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  comment TEXT NOT NULL DEFAULT '',
+  resolved INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS merchant_reviews (
   merchant_key TEXT PRIMARY KEY,
   decided_at TEXT NOT NULL

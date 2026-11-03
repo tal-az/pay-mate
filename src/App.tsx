@@ -5,6 +5,7 @@ import { isStale, longDate } from './freshness';
 import type { Category, LastUpdate, UpdateStatus } from '../shared/api';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
+import { Tasks } from './pages/Tasks';
 import { Insights } from './pages/Insights';
 import { Budgets } from './pages/Budgets';
 import { ImportPage } from './pages/ImportPage';
@@ -12,11 +13,12 @@ import { Mapping } from './pages/Mapping';
 import { AccentPicker } from './components/AccentPicker';
 import { MappingNudge } from './components/MappingNudge';
 
-export type PageId = 'overview' | 'transactions' | 'insights' | 'budgets' | 'mapping' | 'settings';
+export type PageId = 'overview' | 'transactions' | 'tasks' | 'insights' | 'budgets' | 'mapping' | 'settings';
 
 const NAV: Array<{ id: PageId; label: string }> = [
   { id: 'overview', label: 'סקירה' },
   { id: 'transactions', label: 'עסקאות' },
+  { id: 'tasks', label: 'משימות פתוחות' },
   { id: 'insights', label: 'תובנות' },
   { id: 'budgets', label: 'תקציבים' },
   { id: 'mapping', label: 'מיפוי עסקים' },
@@ -47,6 +49,7 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [unknownCount, setUnknownCount] = useState(0);
+  const [taskCount, setTaskCount] = useState(0);
   const [nudge, setNudge] = useState(false);
   const [tick, setTick] = useState(0);
   const pageRef = useRef<PageId>('overview');
@@ -83,6 +86,11 @@ export function App() {
     void api.unknownMerchants(month).then((l) => setUnknownCount(l.length));
   }, [month, tick]);
 
+  // Open tasks span all months, so their count does not depend on the selected month.
+  useEffect(() => {
+    void api.flags().then((l) => setTaskCount(l.filter((f) => !f.resolved).length));
+  }, [tick]);
+
   // The corner offer appears when a month's window opens (or new months arrive), once, and never while playing.
   const monthsKey = months.join(',');
   useEffect(() => {
@@ -114,6 +122,7 @@ export function App() {
           <button key={n.id} className="nav-item" aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
             <span>{n.label}</span>
             {n.id === 'mapping' && unknownCount > 0 && <span className="badge" aria-label={`${unknownCount} עסקים לא ממופים`}>{unknownCount}</span>}
+            {n.id === 'tasks' && taskCount > 0 && <span className="badge" aria-label={`${taskCount} משימות פתוחות`}>{taskCount}</span>}
           </button>
         ))}
         <p className="privacy">
@@ -149,7 +158,7 @@ export function App() {
               <button className="btn" onClick={() => setStaleDismissed(true)}>אחר כך</button>
             </div>
           )}
-          {loaded && months.length > 0 && page !== 'settings' && (
+          {loaded && months.length > 0 && page !== 'settings' && page !== 'tasks' && (
             <div className="topbar">
               <span className="sub">חיוב לפי חודש</span>
               <select
@@ -166,6 +175,8 @@ export function App() {
             <Dashboard {...shared} />
           ) : page === 'transactions' ? (
             <Transactions {...shared} />
+          ) : page === 'tasks' ? (
+            <Tasks {...shared} />
           ) : page === 'insights' ? (
             <Insights {...shared} />
           ) : page === 'budgets' ? (

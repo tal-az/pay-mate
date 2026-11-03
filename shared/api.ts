@@ -7,6 +7,29 @@ export interface Category {
   color: string;
 }
 
+export const FLAG_KINDS = ['suspicious', 'mistake', 'attention'] as const;
+export type FlagKind = (typeof FLAG_KINDS)[number];
+export const MAX_FLAG_COMMENT = 500;
+
+/** A note the user attached to a transaction; it stays an open task until resolved. */
+export interface TxFlag {
+  txId: string;
+  kind: FlagKind;
+  comment: string;
+  resolved: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+/** A flag together with the transaction it is about, for the tasks page. */
+export interface FlaggedTx extends TxFlag {
+  merchant: string;
+  purchaseDate: string;
+  chargedAmount: number;
+  originalAmount: number;
+  originalCurrency: string;
+}
+
 export interface TxRow {
   id: string;
   purchaseDate: string;
@@ -20,6 +43,7 @@ export interface TxRow {
   foreignSite: boolean;
   discount: number;
   cardLast4: string;
+  flag?: { kind: FlagKind; resolved: boolean; comment: string };
 }
 
 export interface CategoryTotal {
@@ -166,6 +190,13 @@ export interface PayMateApi {
   /** Creates a category of the user's own. Rejects with a Hebrew message when the name is empty, too long or taken. */
   addCategory(name: string, color: string): Promise<Category>;
   setCategory(txId: string, categoryKey: string, applyToMerchant: boolean): Promise<void>;
+  /** Flags a transaction, or edits its existing flag (keeping whether it is resolved). Rejects with a Hebrew message when the comment is too long. */
+  setFlag(txId: string, kind: FlagKind, comment: string): Promise<void>;
+  /** Closes a flag, or reopens it. */
+  resolveFlag(txId: string, resolved: boolean): Promise<void>;
+  clearFlag(txId: string): Promise<void>;
+  /** Every flag in all months, newest first. */
+  flags(): Promise<FlaggedTx[]>;
   insights(month: string): Promise<Insight[]>;
   budgets(): Promise<Budget[]>;
   setBudget(categoryKey: string, monthlyAmount: number | null): Promise<void>;

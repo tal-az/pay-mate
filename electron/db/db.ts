@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
-import type { Category } from '../../shared/api';
+import { FLAG_KINDS, MAX_FLAG_COMMENT, type Category, type FlagKind } from '../../shared/api';
 import type { ParsedStatement } from '../../shared/types';
 
 export type Db = DatabaseSync;
@@ -91,6 +91,26 @@ export function setCategory(db: Db, txId: string, categoryKey: string, applyToMe
     db.prepare('UPDATE transactions SET category_id = ? WHERE merchant = ? AND category_locked = 0').run(catId, tx.merchant);
   }
   db.prepare('UPDATE transactions SET category_id = ?, category_locked = 1 WHERE id = ?').run(catId, txId);
+}
+
+/** Flags a transaction, or edits its flag; an edited flag stays resolved or open as it was. */
+export function setFlag(db: Db, txId: string, kind: FlagKind, comment: string) {
+  if (!FLAG_KINDS.includes(kind)) throw new Error(`unknown flag kind ${kind}`);
+  const text = comment.trim();
+  if (text.length > MAX_FLAG_COMMENT) throw new Error(`ההערה ארוכה מדי (עד ${MAX_FLAG_COMMENT} תווים)`);
+  if (!db.prepare('SELECT 1 FROM transactions WHERE id = ?').get(txId)) throw new Error('transaction not found');
+  db.prepare(
+    `INSERT INTO tx_flags (tx_id, kind, comment, created_at) VALUES (?,?,?,?)
+     ON CONFLICT(tx_id) DO UPDATE SET kind = excluded.kind, comment = excluded.comment`,
+  ).run(txId, kind, text, new Date().toISOString());
+}
+
+export function resolveFlag(db: Db, txId: string, resolved: boolean) {
+  db.prepare('UPDATE tx_flags SET resolved = ?, resolved_at = ? WHERE tx_id = ?').run(resolved ? 1 : 0, resolved ? new Date().toISOString() : null, txId);
+}
+
+export function clearFlag(db: Db, txId: string) {
+  db.prepare('DELETE FROM tx_flags WHERE tx_id = ?').run(txId);
 }
 
 /** Maps every charge from this business, in all months, to a category, and remembers it for future imports. Returns how many charges changed. */

@@ -2,15 +2,17 @@ import { app, BrowserWindow, ipcMain, shell, utilityProcess } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { join } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
-import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, addCategory, type Db } from './db/db';
 import {
-  listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget,
+  openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, addCategory, setFlag, resolveFlag, clearFlag, type Db,
+} from './db/db';
+import {
+  listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, listFlags,
 } from './db/queries';
 import { parseIsracardBuffer } from '../shared/import/isracard';
 import { exportBackup, restoreData } from './db/backup';
 import { BackupError, parseBackup } from '../shared/backup';
 import { mapAccounts, failureFromErrorType, failureMessage, type ScrapedAccount } from './sources/sync/map';
-import type { ImportInput, ImportResult, RestoreResult, SyncRequest, SyncResult, SyncFailure } from '../shared/api';
+import type { FlagKind, ImportInput, ImportResult, RestoreResult, SyncRequest, SyncResult, SyncFailure } from '../shared/api';
 import { findProvider, type ProviderKey } from '../shared/providers';
 
 let db: Db;
@@ -155,6 +157,10 @@ function registerIpc() {
   ipcMain.handle('transactions', (_e, month: string) => monthTransactions(db, month));
   ipcMain.handle('insights', (_e, month: string) => monthInsights(db, month));
   ipcMain.handle('setCategory', (_e, id: string, key: string, all: boolean) => setCategory(db, id, key, all));
+  ipcMain.handle('setFlag', (_e, id: string, kind: FlagKind, comment: string) => setFlag(db, id, kind, comment));
+  ipcMain.handle('resolveFlag', (_e, id: string, resolved: boolean) => resolveFlag(db, id, resolved));
+  ipcMain.handle('clearFlag', (_e, id: string) => clearFlag(db, id));
+  ipcMain.handle('flags', () => listFlags(db));
   ipcMain.handle('budgets', () => listBudgets(db));
   ipcMain.handle('setBudget', (_e, key: string, amount: number | null) => setBudget(db, key, amount));
   ipcMain.handle('sync', (e, request: SyncRequest) =>

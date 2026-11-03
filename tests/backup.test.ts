@@ -20,6 +20,9 @@ function populate(s: Store) {
   s.setCategory('k1', 'entertainment', false);
   s.setBudget('groceries', 700);
   s.setBudget('health', 120.5);
+  s.setFlag('a1', 'suspicious', 'לא זיהיתי את החיוב');
+  s.setFlag('b1', 'mistake', '');
+  s.resolveFlag('b1', true);
 }
 
 /** The two stores order rules, reviews and budgets differently; the content is what must match. */
@@ -31,6 +34,7 @@ function normalized(data: BackupData): BackupData {
     reviews: [...data.reviews].sort(by((r) => r.merchantKey)),
     budgets: [...data.budgets].sort(by((b) => b.categoryKey)),
     imports: data.imports,
+    flags: [...data.flags].sort(by((f) => f.txId)),
   };
 }
 
@@ -140,6 +144,21 @@ describe('parseBackup', () => {
     const data = parse(b);
     expect(data.transactions).toHaveLength(6);
     expect(data.budgets.some((x) => x.categoryKey === 'bills')).toBe(false);
+  });
+
+  it('reads a backup made before flags existed', () => {
+    const old = valid();
+    delete old.flags;
+    expect(parse(old).flags).toEqual([]);
+  });
+
+  it('drops flags with no transaction or an unknown kind, and keeps the rest', () => {
+    const b = valid();
+    b.flags.push(
+      { txId: 'gone', kind: 'attention', comment: '', resolved: false, createdAt: 'x', resolvedAt: null },
+      { txId: 'a2', kind: 'from-the-future', comment: '', resolved: false, createdAt: 'x', resolvedAt: null },
+    );
+    expect(parse(b).flags.map((f) => f.txId).sort()).toEqual(['a1', 'b1']);
   });
 
   it('reads an empty backup', () => {

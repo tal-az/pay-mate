@@ -1,5 +1,6 @@
 import type { Db } from './db';
 import { SEED_KEYS } from '../../shared/core/categorize';
+import type { FlagKind, TxFlag } from '../../shared/api';
 import {
   makeBackup, type Backup, type BackupBudget, type BackupCategory, type BackupData, type BackupImport, type BackupReview, type BackupRule, type BackupTransaction,
 } from '../../shared/backup';
@@ -55,7 +56,11 @@ export function exportData(db: Db): BackupData {
   const imports = db
     .prepare('SELECT at, source, label, added, skipped FROM imports ORDER BY id')
     .all() as unknown as BackupImport[];
-  return { categories, transactions, rules, reviews, budgets, imports };
+  const flags = (db
+    .prepare('SELECT tx_id, kind, comment, resolved, created_at, resolved_at FROM tx_flags ORDER BY created_at, tx_id')
+    .all() as unknown as Array<{ tx_id: string; kind: FlagKind; comment: string; resolved: number; created_at: string; resolved_at: string | null }>)
+    .map((r): TxFlag => ({ txId: r.tx_id, kind: r.kind, comment: r.comment, resolved: r.resolved === 1, createdAt: r.created_at, resolvedAt: r.resolved_at }));
+  return { categories, transactions, rules, reviews, budgets, imports, flags };
 }
 
 export function exportBackup(db: Db): Backup {
@@ -96,6 +101,8 @@ export function restoreData(db: Db, data: BackupData) {
     for (const b of data.budgets) insertBudget.run(idOf(b.categoryKey), b.monthlyAmount);
     const insertImport = db.prepare('INSERT INTO imports (at, source, label, added, skipped) VALUES (?,?,?,?,?)');
     for (const i of data.imports) insertImport.run(i.at, i.source, i.label, i.added, i.skipped);
+    const insertFlag = db.prepare('INSERT INTO tx_flags (tx_id, kind, comment, resolved, created_at, resolved_at) VALUES (?,?,?,?,?,?)');
+    for (const f of data.flags ?? []) insertFlag.run(f.txId, f.kind, f.comment, f.resolved ? 1 : 0, f.createdAt, f.resolvedAt);
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');

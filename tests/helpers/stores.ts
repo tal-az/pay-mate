@@ -1,12 +1,14 @@
 import { join } from 'node:path';
-import { openDb, addCategory, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant } from '../../electron/db/db';
 import {
-  allTransactions, lastUpdate, listCategories, listBudgets, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
+  openDb, addCategory, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, setFlag, resolveFlag, clearFlag,
+} from '../../electron/db/db';
+import {
+  allTransactions, lastUpdate, listCategories, listBudgets, listFlags, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
 } from '../../electron/db/queries';
 import { exportData, restoreData } from '../../electron/db/backup';
 import * as web from '../../src/web/logic';
 import { emptyData, type BackupData } from '../../shared/backup';
-import type { Budget, Category, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
+import type { Budget, Category, FlagKind, FlaggedTx, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
 import type { ParsedStatement, ParsedTransaction, Source } from '../../shared/types';
 
 /** The same operations on both implementations: the desktop's SQLite and the website's plain document. */
@@ -26,6 +28,10 @@ export interface Store {
   monthSummary(month: string): MonthSummary;
   lastUpdate(): LastUpdate | null;
   budgets(): Budget[];
+  setFlag(txId: string, kind: FlagKind, comment: string): void;
+  resolveFlag(txId: string, resolved: boolean): void;
+  clearFlag(txId: string): void;
+  flags(): FlaggedTx[];
   exportData(): BackupData;
   restoreData(data: BackupData): void;
 }
@@ -48,6 +54,10 @@ export function sqliteStore(): Store {
     monthSummary: (m) => monthSummary(db, m),
     lastUpdate: () => lastUpdate(db),
     budgets: () => listBudgets(db),
+    setFlag: (id, k, c) => setFlag(db, id, k, c),
+    resolveFlag: (id, r) => resolveFlag(db, id, r),
+    clearFlag: (id) => clearFlag(db, id),
+    flags: () => listFlags(db),
     exportData: () => exportData(db),
     restoreData: (d) => restoreData(db, d),
   };
@@ -71,6 +81,10 @@ export function webStore(): Store {
     monthSummary: (m) => web.monthSummary(data, m),
     lastUpdate: () => web.lastUpdate(data),
     budgets: () => web.listBudgets(data),
+    setFlag: (id, k, c) => web.setFlag(data, id, k, c),
+    resolveFlag: (id, r) => web.resolveFlag(data, id, r),
+    clearFlag: (id) => web.clearFlag(data, id),
+    flags: () => web.listFlags(data),
     exportData: () => structuredClone(data),
     restoreData: (d) => { data = structuredClone(d); },
   };
