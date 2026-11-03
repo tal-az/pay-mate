@@ -67,3 +67,28 @@ export function categorize(
   if (tx.standingOrder && tx.foreignSite) return 'subscriptions';
   return 'other';
 }
+
+/** Colors offered when the user adds a category. */
+export const CATEGORY_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e34948', '#e87ba4', '#6250d6', '#008300', '#0f9fb5', '#a0522d', '#7a8b1f', '#c15fa8'];
+
+export const SEED_KEYS = new Set(CATEGORY_SEEDS.map((c) => c.key));
+export const MAX_CATEGORY_NAME = 30;
+export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+export interface NewCategory {
+  key: string;
+  name: string;
+  color: string;
+}
+
+/** Validates a user-made category and gives it a key. Throws an Error with a Hebrew message the interface can show. */
+export function makeCategory(name: string, color: string, existing: Array<{ name: string }>): NewCategory {
+  const clean = name.trim().replace(/\s+/g, ' ');
+  if (!clean) throw new Error('צריך לתת שם לקטגוריה.');
+  if (clean.length > MAX_CATEGORY_NAME) throw new Error(`השם ארוך מדי (עד ${MAX_CATEGORY_NAME} תווים).`);
+  if (!HEX_COLOR.test(color)) throw new Error('הצבע לא תקין.');
+  const lower = clean.toLowerCase();
+  if (existing.some((c) => c.name.trim().toLowerCase() === lower)) throw new Error('כבר יש קטגוריה בשם הזה.');
+  const key = `custom-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  return { key, name: clean, color: color.toLowerCase() };
+}

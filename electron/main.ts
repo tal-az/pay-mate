@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, utilityProcess } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { join } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
-import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, type Db } from './db/db';
+import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, addCategory, type Db } from './db/db';
 import {
   listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget,
 } from './db/queries';
@@ -150,6 +150,7 @@ function registerIpc() {
   ipcMain.handle('monthTotals', () => monthTotals(db));
   ipcMain.handle('recurringTimeline', () => recurringTimelineRows(db));
   ipcMain.handle('categories', () => listCategories(db));
+  ipcMain.handle('addCategory', (_e, name: string, color: string) => addCategory(db, name, color));
   ipcMain.handle('summary', (_e, month: string) => monthSummary(db, month));
   ipcMain.handle('transactions', (_e, month: string) => monthTransactions(db, month));
   ipcMain.handle('insights', (_e, month: string) => monthInsights(db, month));

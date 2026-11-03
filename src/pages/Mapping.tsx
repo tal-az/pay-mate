@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import { ils, monthLabel, shortDate } from '../format';
+import { AddCategory } from '../components/AddCategory';
 import { blip, burst, reducedMotion, shower, type Particle } from '../fx';
 import type { UnknownMerchant } from '../../shared/api';
 import type { Shared } from '../App';
@@ -70,6 +71,7 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
   const [feedback, setFeedback] = useState('');
   const [streak, setStreak] = useState(0);
   const [best, setBest] = useState(0);
+  const [adding, setAdding] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [fly, setFly] = useState({ x: -90, r: -5 });
   const [muted, setMuted] = useState(() => {
@@ -298,7 +300,18 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
             {i < 9 && <kbd>{i + 1}</kbd>}
           </button>
         ))}
+        <button className="mchip mchip-add" onClick={() => setAdding(true)} disabled={!!leaving || adding}>
+          <span className="dot" aria-hidden="true">+</span>
+          <span>קטגוריה חדשה</span>
+        </button>
       </div>
+      {adding && (
+        <AddCategory
+          used={categories.map((c) => c.color.toLowerCase())}
+          onCancel={() => setAdding(false)}
+          onAdded={() => { setAdding(false); setFeedback('הקטגוריה נוספה.'); refresh(); }}
+        />
+      )}
 
       <div className="mactions">
         <button className="btn" onClick={() => void choose('other')} disabled={!!leaving}>להשאיר באחר <kbd className="mkbd">0</kbd></button>

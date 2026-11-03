@@ -1,7 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CATEGORY_SEEDS, categorize, type UserRule } from '../../shared/core/categorize';
+import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
+import type { Category } from '../../shared/api';
 import type { ParsedStatement } from '../../shared/types';
 
 export type Db = DatabaseSync;
@@ -15,6 +16,14 @@ export function openDb(file: string, schemaDir = __dirname): Db {
   );
   for (const c of CATEGORY_SEEDS) insert.run(c.key, c.name, c.color);
   return db;
+}
+
+/** Adds a category the user made. */
+export function addCategory(db: Db, name: string, color: string): Category {
+  const existing = db.prepare('SELECT name FROM categories').all() as unknown as Array<{ name: string }>;
+  const c = makeCategory(name, color, existing);
+  const res = db.prepare('INSERT INTO categories (key, name, color) VALUES (?, ?, ?)').run(c.key, c.name, c.color);
+  return { id: Number(res.lastInsertRowid), ...c };
 }
 
 function categoryIds(db: Db): Map<string, number> {

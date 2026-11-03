@@ -1,5 +1,5 @@
 import { buildInsights, monthOf, recurringTimeline } from '../shared/core/insights';
-import { CATEGORY_SEEDS } from '../shared/core/categorize';
+import { CATEGORY_SEEDS, makeCategory } from '../shared/core/categorize';
 import { emptyData, makeBackup } from '../shared/backup';
 import type {
   Budget, Category, ImportResult, MonthSummary, PayMateApi, TxRow,
@@ -93,7 +93,12 @@ export const demoApi: PayMateApi = {
     for (const t of data) if (t.merchant === merchant) t.categoryKey = 'other';
   },
   async lastUpdate() { return { at: new Date(Date.now() - 3 * 86_400_000).toISOString(), source: 'sync' as const }; },
-  async categories() { return categories; },
+  async categories() { return [...categories]; },
+  async addCategory(name, color) {
+    const c = { id: categories.length + 1, ...makeCategory(name, color, categories) };
+    categories.push(c);
+    return c;
+  },
   async transactions(month) { await sleep(); return rowsOf(month); },
   async summary(month): Promise<MonthSummary> {
     await sleep();

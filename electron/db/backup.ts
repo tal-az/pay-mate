@@ -1,6 +1,7 @@
 import type { Db } from './db';
+import { SEED_KEYS } from '../../shared/core/categorize';
 import {
-  makeBackup, type Backup, type BackupBudget, type BackupData, type BackupImport, type BackupReview, type BackupRule, type BackupTransaction,
+  makeBackup, type Backup, type BackupBudget, type BackupCategory, type BackupData, type BackupImport, type BackupReview, type BackupRule, type BackupTransaction,
 } from '../../shared/backup';
 
 interface TxDbRow {
@@ -40,6 +41,8 @@ export function exportData(db: Db): BackupData {
     categoryLocked: r.category_locked === 1,
     source: r.source,
   }));
+  const categories = (db.prepare('SELECT key, name, color FROM categories ORDER BY id').all() as unknown as BackupCategory[])
+    .filter((c) => !SEED_KEYS.has(c.key));
   const rules = db
     .prepare('SELECT r.pattern AS pattern, c.key AS categoryKey, r.origin AS origin FROM merchant_rules r JOIN categories c ON c.id = r.category_id ORDER BY r.id')
     .all() as unknown as BackupRule[];
@@ -52,7 +55,7 @@ export function exportData(db: Db): BackupData {
   const imports = db
     .prepare('SELECT at, source, label, added, skipped FROM imports ORDER BY id')
     .all() as unknown as BackupImport[];
-  return { transactions, rules, reviews, budgets, imports };
+  return { categories, transactions, rules, reviews, budgets, imports };
 }
 
 export function exportBackup(db: Db): Backup {
@@ -61,13 +64,17 @@ export function exportBackup(db: Db): Backup {
 
 /** Replaces everything in the database with the backup's data, all or nothing. */
 export function restoreData(db: Db, data: BackupData) {
-  const ids = new Map((db.prepare('SELECT id, key FROM categories').all() as Array<{ id: number; key: string }>).map((r) => [r.key, r.id]));
-  const other = ids.get('other')!;
-  const idOf = (key: string) => ids.get(key) ?? other;
-
   db.exec('BEGIN');
   try {
     for (const table of ['transactions', 'merchant_rules', 'merchant_reviews', 'budgets', 'imports']) db.exec(`DELETE FROM ${table}`);
+    // The backup's own categories replace the current ones; the built-in ones stay.
+    const stale = (db.prepare('SELECT key FROM categories').all() as Array<{ key: string }>).filter((c) => !SEED_KEYS.has(c.key));
+    for (const c of stale) db.prepare('DELETE FROM categories WHERE key = ?').run(c.key);
+    const insertCategory = db.prepare('INSERT INTO categories (key, name, color) VALUES (?,?,?)');
+    for (const c of data.categories ?? []) insertCategory.run(c.key, c.name, c.color);
+    const ids = new Map((db.prepare('SELECT id, key FROM categories').all() as Array<{ id: number; key: string }>).map((r) => [r.key, r.id]));
+    const other = ids.get('other')!;
+    const idOf = (key: string) => ids.get(key) ?? other;
     const insertTx = db.prepare(
       `INSERT INTO transactions
         (id, company, card_last4, purchase_date, charge_date, raw_merchant, merchant, original_amount, original_currency,
