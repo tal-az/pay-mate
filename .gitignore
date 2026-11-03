@@ -9,3 +9,5 @@ release
 .claude/
 .env
 PRODUCT.md
+dist-web
+paymate-backup*.json
