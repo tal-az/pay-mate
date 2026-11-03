@@ -1,8 +1,9 @@
 import { ils, ilsExact, monthLabel, shortMonth } from '../format';
+import { cardLabel } from '../../shared/core/cards';
 import type { TimelineRow } from '../../shared/api';
 
 /** One row per recurring charge, one cell per month. A hollow ring is a month where the charge is missing. */
-export function RecurringTimeline({ rows }: { rows: TimelineRow[] }) {
+export function RecurringTimeline({ rows, showCard = false }: { rows: TimelineRow[]; showCard?: boolean }) {
   if (rows.length === 0) return null;
   const months = rows[0].cells.map((c) => c.month);
 
@@ -17,7 +18,7 @@ export function RecurringTimeline({ rows }: { rows: TimelineRow[] }) {
         const firstSeen = r.cells.find((c) => c.amount != null)?.month ?? '';
         return (
           <div key={`${r.card}-${r.merchant}`} className="tl-row" role="row" style={{ gridTemplateColumns: `minmax(110px, 1fr) 70px repeat(${months.length}, 48px)` }}>
-            <span role="rowheader">{r.merchant}{r.holes > 0 && <span className="flag warn">{r.holes === 1 ? 'חור אחד' : `${r.holes} חורים`}</span>}</span>
+            <span role="rowheader">{r.merchant}{showCard && <span className="flag">{cardLabel(r.company, r.cardLast4)}</span>}{r.holes > 0 &&<span className="flag warn">{r.holes === 1 ? 'חור אחד' : `${r.holes} חורים`}</span>}</span>
             <span className="tl-num">{ils(r.usual)}</span>
             {r.cells.map((c) => {
               const hole = c.covered && c.amount == null && c.month > firstSeen;

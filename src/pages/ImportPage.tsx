@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, isDemo } from '../api';
 import { monthLabel } from '../format';
+import { longDate } from '../freshness';
+import { byCompany, companyName } from '../../shared/core/cards';
 import type { ImportResult, SyncResult } from '../../shared/api';
 import { PROVIDERS, findProvider, type ProviderKey } from '../../shared/providers';
 import type { Shared } from '../App';
@@ -27,7 +29,7 @@ function saveCompany(key: ProviderKey) {
   }
 }
 
-export function ImportPage({ refresh, notify }: Shared) {
+export function ImportPage({ cards, refresh, notify }: Shared) {
   const [company, setCompany] = useState<ProviderKey | null>(loadCompany);
   const [accent, setAccent] = useState(currentAccent);
   useEffect(() => {
@@ -201,8 +203,21 @@ export function ImportPage({ refresh, notify }: Shared) {
     <>
       <h1 className="page-title">ייבוא והגדרות</h1>
 
+      {cards.length > 0 && (
+        <section className="section" style={{ marginTop: 20 }}>
+          <h2 className="section-title">הכרטיסים שלכם</h2>
+          <ul className="list">
+            {byCompany(cards).map((c) => (
+              <li key={c.company}>
+                <span>{companyName(c.company)}<span className="muted"> · {c.cards.join(', ')}</span></span>
+                <span className="muted">{c.updatedAt ? `עודכן ב־${longDate(c.updatedAt)}` : 'תאריך העדכון לא ידוע'}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-      {desktop && <section className="section" style={{ marginTop: 20 }}>
+      {desktop && <section className="section" style={cards.length > 0 ? undefined : { marginTop: 20 }}>
         <h2 className="section-title">סנכרון מאתר חברת האשראי</h2>
         <div className="provider-choice" role="group" aria-label="חברת האשראי">
           {PROVIDERS.map((p) => (
@@ -218,7 +233,7 @@ export function ImportPage({ refresh, notify }: Shared) {
             </button>
           ))}
         </div>
-        {!provider && <p className="help">בחרו את חברת האשראי של הכרטיס.</p>}
+        {!provider && <p className="help">בחרו את חברת האשראי של הכרטיס. יש לכם כרטיסים בכמה חברות? סנכרנו כל חברה בתורה, והכול יתווסף יחד.</p>}
         {provider && <>
         <form key={provider.key} ref={formRef} className="sync-form" onSubmit={runSync} autoComplete="off">
           {provider.fields.map((f) => (
@@ -269,7 +284,7 @@ export function ImportPage({ refresh, notify }: Shared) {
         </div>
       </section>}
 
-      <section className="section" style={desktop ? undefined : { marginTop: 20 }}>
+      <section className="section" style={desktop || cards.length > 0 ? undefined : { marginTop: 20 }}>
         <h2 className="section-title">{desktop ? 'או ייבוא מקובץ של ישראכארט' : 'ייבוא מקובץ של ישראכארט'}</h2>
         <div
           className={`drop ${over ? 'over' : ''}`}

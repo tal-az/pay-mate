@@ -5,10 +5,11 @@ import { FLAG_LABEL } from '../flags';
 import { FlagEditor } from '../components/FlagEditor';
 import { FlagIcon } from '../components/FlagIcon';
 import { DailyStrip } from '../charts/DailyStrip';
+import { cardLabel } from '../../shared/core/cards';
 import type { TxRow } from '../../shared/api';
 import type { Shared } from '../App';
 
-export function Transactions({ month, months, categories, filterCategory, go, refresh }: Shared) {
+export function Transactions({ month, cards, card, categories, filterCategory, go, refresh }: Shared) {
   const [rows, setRows] = useState<TxRow[]>([]);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(filterCategory);
@@ -16,8 +17,8 @@ export function Transactions({ month, months, categories, filterCategory, go, re
   const [flagging, setFlagging] = useState<string | null>(null);
 
   useEffect(() => {
-    if (month) void api.transactions(month).then(setRows);
-  }, [month]);
+    if (month) void api.transactions(month, card).then(setRows);
+  }, [month, card]);
 
   const catByKey = useMemo(() => new Map(categories.map((c) => [c.key, c])), [categories]);
   const shown = rows.filter(
@@ -28,13 +29,13 @@ export function Transactions({ month, months, categories, filterCategory, go, re
     if (!pending) return;
     await api.setCategory(pending.tx.id, pending.key, all);
     setPending(null);
-    if (month) setRows(await api.transactions(month));
+    if (month) setRows(await api.transactions(month, card));
     refresh();
   }
 
   async function flagDone() {
     setFlagging(null);
-    if (month) setRows(await api.transactions(month));
+    if (month) setRows(await api.transactions(month, card));
     refresh();
   }
 
@@ -92,6 +93,7 @@ export function Transactions({ month, months, categories, filterCategory, go, re
                 <td className="date">{shortDate(t.purchaseDate)}</td>
                 <td>
                   {t.merchant}
+                  {!card && cards.length >= 2 && <span className="flag">{cardLabel(t.company, t.cardLast4)}</span>}
                   {t.standingOrder && <span className="flag">הוראת קבע</span>}
                   {t.originalCurrency !== 'ILS' && <span className="flag">{foreignAmount(t.originalCurrency, t.originalAmount)}</span>}
                   <button

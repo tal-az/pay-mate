@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, isDemo, isDesktop } from './api';
 import { monthLabel } from './format';
 import { isStale, longDate } from './freshness';
-import type { Category, LastUpdate, UpdateStatus } from '../shared/api';
+import { byCompany, cardLabel, companyName } from '../shared/core/cards';
+import type { CardInfo, Category, UpdateStatus } from '../shared/api';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
 import { Tasks } from './pages/Tasks';
@@ -29,9 +30,16 @@ const NAV: Array<{ id: PageId; label: string }> = [
 const DESKTOP_DOWNLOAD_URL = 'https://github.com/tal-az/pay-mate/releases/latest/download/PayMate-Setup.exe';
 const isWindows = /Windows/i.test(navigator.userAgent);
 
+/** The pages that can show one card. Budgets, mapping and the follow-up list always cover all of them. */
+const CARD_PAGES: PageId[] = ['overview', 'transactions', 'insights'];
+
 export interface Shared {
   months: string[];
   month: string | null;
+  cards: CardInfo[];
+  /** The key of the card being viewed, or empty for all cards. */
+  card: string;
+  selectCard: (card: string) => void;
   categories: Category[];
   refresh: () => void;
   go: (page: PageId, categoryKey?: string) => void;
@@ -48,7 +56,8 @@ export function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filterCategory, setFilterCategory] = useState('');
   const [loaded, setLoaded] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<LastUpdate | null>(null);
+  const [cards, setCards] = useState<CardInfo[]>([]);
+  const [card, setCard] = useState('');
   const [staleDismissed, setStaleDismissed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
@@ -60,9 +69,11 @@ export function App() {
   pageRef.current = page;
 
   const load = useCallback(async () => {
-    const [ms, cats, last] = await Promise.all([api.months(), api.categories(), api.lastUpdate()]);
+    const [ms, cats, cs] = await Promise.all([api.months(), api.categories(), api.cards()]);
     setMonths(ms);
-    setLastUpdate(last);
+    setCards(cs);
+    // The card being viewed can disappear, for example when a backup is restored.
+    setCard((cur) => (cs.some((c) => c.key === cur) ? cur : ''));
     setCategories(cats);
     setMonth((cur) => (cur && ms.includes(cur) ? cur : ms[0] ?? null));
     setLoaded(true);
@@ -112,8 +123,9 @@ export function App() {
   }, []);
 
   const notify = useCallback((text: string) => setNotice(text), []);
-  const shared: Shared = { months, month, categories, refresh, go, filterCategory, notify, selectMonth: setMonth };
-  const stale = isStale(lastUpdate?.at) && !staleDismissed && page !== 'settings';
+  const shared: Shared = { months, month, cards, card, selectCard: setCard, categories, refresh, go, filterCategory, notify, selectMonth: setMonth };
+  const companies = byCompany(cards);
+  const staleCompanies = staleDismissed || page === 'settings' ? [] : companies.filter((c) => isStale(c.updatedAt));
 
   return (
     <div className="app">
@@ -159,10 +171,13 @@ export function App() {
               <button className="btn" onClick={() => setNotice(null)}>סגירה</button>
             </div>
           )}
-          {stale && lastUpdate && (
+          {staleCompanies.length > 0 && (
             <div className="banner stale" role="status">
               <span>
-                המידע מעודכן עד {longDate(lastUpdate.at)}. כדי לראות עסקאות חדשות, עדכנו אותו {isDesktop ? 'בסנכרון או ' : ''}בהעלאת קובצי Excel.
+                {companies.length === 1
+                  ? `המידע מעודכן עד ${longDate(companies[0].updatedAt!)}.`
+                  : `המידע מעודכן: ${staleCompanies.map((c) => `${companyName(c.company)} עד ${longDate(c.updatedAt!)}`).join(', ')}.`}
+                {' '}כדי לראות עסקאות חדשות, עדכנו אותו {isDesktop ? 'בסנכרון או ' : ''}בהעלאת קובצי Excel.
               </span>
               <button className="btn primary" onClick={() => go('settings')}>עדכון המידע</button>
               <button className="btn" onClick={() => setStaleDismissed(true)}>אחר כך</button>
@@ -171,14 +186,27 @@ export function App() {
           {loaded && months.length > 0 && page !== 'settings' && page !== 'tasks' && (
             <div className="topbar">
               <span className="sub">חיוב לפי חודש</span>
-              <select
-                className="month-select"
-                aria-label="בחירת חודש חיוב"
-                value={month ?? ''}
-                onChange={(e) => setMonth(e.target.value)}
-              >
-                {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-              </select>
+              <div className="topbar-selects">
+                {cards.length >= 2 && CARD_PAGES.includes(page) && (
+                  <select
+                    className="month-select"
+                    aria-label="בחירת כרטיס"
+                    value={card}
+                    onChange={(e) => setCard(e.target.value)}
+                  >
+                    <option value="">כל הכרטיסים</option>
+                    {cards.map((c) => <option key={c.key} value={c.key}>{cardLabel(c.company, c.last4)}</option>)}
+                  </select>
+                )}
+                <select
+                  className="month-select"
+                  aria-label="בחירת חודש חיוב"
+                  value={month ?? ''}
+                  onChange={(e) => setMonth(e.target.value)}
+                >
+                  {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+                </select>
+              </div>
             </div>
           )}
           {!loaded ? null : page === 'overview' ? (

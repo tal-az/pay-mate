@@ -1,4 +1,5 @@
 import type { Insight, TimelineRow, TxRow } from '../api';
+import { cardKey, filterByCard } from './cards';
 
 const MONTH_NAMES = [
   'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
@@ -36,9 +37,19 @@ export interface InsightInput {
   /** Every transaction in the database. */
   all: TxRow[];
   categoryNames: Record<string, string>;
+  /** Transactions on every card, when `all` covers only one. A charge that moved to another card shows up here. */
+  everyCard?: TxRow[];
 }
 
-export function buildInsights({ month, prevMonth, all, categoryNames }: InsightInput): Insight[] {
+/** The insights of all cards, or of one. Ids differ between the two, so following up in one view does not mark the other. */
+export function insightsFor({ month, card, all, categoryNames }: Omit<InsightInput, 'prevMonth' | 'everyCard'> & { card?: string }): Insight[] {
+  const scoped = filterByCard(all, card);
+  const prevMonth = [...new Set(scoped.map(monthOf))].filter((m) => m < month).sort().pop() ?? null;
+  const insights = buildInsights({ month, prevMonth, all: scoped, categoryNames, everyCard: all });
+  return card ? insights.map((i) => ({ ...i, id: `${card}/${i.id}` })) : insights;
+}
+
+export function buildInsights({ month, prevMonth, all, categoryNames, everyCard = all }: InsightInput): Insight[] {
   const out: Insight[] = [];
   const cur = all.filter((t) => monthOf(t) === month);
   if (cur.length === 0) return out;
@@ -145,13 +156,13 @@ export function buildInsights({ month, prevMonth, all, categoryNames }: InsightI
     }
   }
 
-  // Duplicates: same merchant and amount within a day.
+  // Duplicates: same card, merchant and amount within a day. On two cards it is more likely two people paying.
   const seen = new Set<string>();
   for (const t of cur) {
     for (const u of cur) {
-      if (t.id >= u.id || t.merchant !== u.merchant || t.chargedAmount !== u.chargedAmount) continue;
+      if (t.id >= u.id || cardKey(t) !== cardKey(u) || t.merchant !== u.merchant || t.chargedAmount !== u.chargedAmount) continue;
       if (Math.abs(dayNumber(t.purchaseDate) - dayNumber(u.purchaseDate)) > 1) continue;
-      const key = `${t.merchant}|${t.chargedAmount}`;
+      const key = `${cardKey(t)}|${t.merchant}|${t.chargedAmount}`;
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({
@@ -164,7 +175,7 @@ export function buildInsights({ month, prevMonth, all, categoryNames }: InsightI
     }
   }
 
-  out.push(...recurringInsights(month, all, categoryNames));
+  out.push(...recurringInsights(month, all, everyCard, categoryNames));
 
   return out.sort((x, y) => Number(y.attention) - Number(x.attention));
 }
@@ -172,6 +183,8 @@ export function buildInsights({ month, prevMonth, all, categoryNames }: InsightI
 interface Series {
   merchant: string;
   card: string;
+  company: string;
+  cardLast4: string;
   /** Total charged per billing month. */
   perMonth: Map<string, number>;
   /** Number of charges per billing month. */
@@ -187,9 +200,9 @@ const unit = (s: Series, month: string) => s.perMonth.get(month)! / s.counts.get
 function recurringSeries(all: TxRow[]): Series[] {
   const groups = new Map<string, Series>();
   for (const t of all) {
-    const key = `${t.cardLast4}|${t.merchant}`;
+    const key = `${cardKey(t)}|${t.merchant}`;
     const s = groups.get(key) ?? {
-      merchant: t.merchant, card: t.cardLast4, perMonth: new Map(), counts: new Map(), txIds: new Map(), median: 0,
+      merchant: t.merchant, card: cardKey(t), company: t.company, cardLast4: t.cardLast4, perMonth: new Map(), counts: new Map(), txIds: new Map(), median: 0,
     };
     const m = monthOf(t);
     s.perMonth.set(m, (s.perMonth.get(m) ?? 0) + t.chargedAmount);
@@ -209,17 +222,30 @@ function recurringSeries(all: TxRow[]): Series[] {
   return out;
 }
 
-function recurringInsights(month: string, all: TxRow[], _categoryNames: Record<string, string>): Insight[] {
+/** True when a similar charge from this merchant landed on another card after `lastSeen`, up to `month`: it moved, it did not stop. */
+function movedToOtherCard(s: Series, lastSeen: string, month: string, everyCard: TxRow[]): boolean {
+  return everyCard.some((t) => {
+    if (t.merchant !== s.merchant || cardKey(t) === s.card) return false;
+    const m = monthOf(t);
+    return m > lastSeen && m <= month && Math.abs(t.chargedAmount - s.median) / s.median <= 0.25;
+  });
+}
+
+/** A card's month only counts as "covered" if that card has charges in it, so a missing statement is not a hole. */
+function monthsCoveredByCard(all: TxRow[]): Map<string, Set<string>> {
+  const covered = new Map<string, Set<string>>();
+  for (const t of all) {
+    const set = covered.get(cardKey(t)) ?? new Set<string>();
+    set.add(monthOf(t));
+    covered.set(cardKey(t), set);
+  }
+  return covered;
+}
+
+function recurringInsights(month: string, all: TxRow[], everyCard: TxRow[], _categoryNames: Record<string, string>): Insight[] {
   const out: Insight[] = [];
   const series = recurringSeries(all);
-
-  // A card's month only counts as "covered" if that card has charges in it, so a missing statement is not a hole.
-  const coveredByCard = new Map<string, Set<string>>();
-  for (const t of all) {
-    const set = coveredByCard.get(t.cardLast4) ?? new Set<string>();
-    set.add(monthOf(t));
-    coveredByCard.set(t.cardLast4, set);
-  }
+  const coveredByCard = monthsCoveredByCard(all);
 
   let activeCount = 0;
   let activeTotal = 0;
@@ -268,6 +294,7 @@ function recurringInsights(month: string, all: TxRow[], _categoryNames: Record<s
     if (!lastSeen) continue;
     const before = covered.filter((m) => m <= lastSeen && s.perMonth.has(m));
     if (before.length < 3) continue;
+    if (movedToOtherCard(s, lastSeen, month, everyCard)) continue;
 
     if (gap === 1) {
       out.push({
@@ -301,26 +328,23 @@ function recurringInsights(month: string, all: TxRow[], _categoryNames: Record<s
 }
 
 /** One row per recurring charge, with a cell for each of the last `limit` months, so missing months show as holes. */
-export function recurringTimeline(all: TxRow[], limit: number): TimelineRow[] {
+export function recurringTimeline(everyCard: TxRow[], limit: number, card?: string): TimelineRow[] {
+  const all = filterByCard(everyCard, card);
   const months = [...new Set(all.map(monthOf))].sort().slice(-limit);
-  const coveredByCard = new Map<string, Set<string>>();
-  for (const t of all) {
-    const set = coveredByCard.get(t.cardLast4) ?? new Set<string>();
-    set.add(monthOf(t));
-    coveredByCard.set(t.cardLast4, set);
-  }
+  const coveredByCard = monthsCoveredByCard(all);
   const rows: TimelineRow[] = recurringSeries(all).map((s) => {
     const covered = coveredByCard.get(s.card) ?? new Set<string>();
-    const cells = months.map((month) => ({
-      month,
-      amount: s.perMonth.get(month) ?? null,
-      covered: covered.has(month),
-    }));
+    const charged = [...s.perMonth.keys()].sort();
+    const cells = months.map((month) => {
+      const lastSeen = charged.filter((m) => m < month).pop();
+      const moved = !s.perMonth.has(month) && lastSeen !== undefined && movedToOtherCard(s, lastSeen, month, everyCard);
+      return { month, amount: s.perMonth.get(month) ?? null, covered: covered.has(month) && !moved };
+    });
     // A hole is a covered month without a charge, between the first and the last time it was charged.
     const seen = cells.filter((c) => c.amount != null).map((c) => c.month);
     const first = seen[0];
     const holes = cells.filter((c) => c.covered && c.amount == null && first !== undefined && c.month > first).length;
-    return { merchant: s.merchant, card: s.card, usual: s.median, cells, holes };
+    return { merchant: s.merchant, card: s.card, company: s.company, cardLast4: s.cardLast4, usual: s.median, cells, holes };
   });
   return rows.sort((a, b) => b.holes - a.holes || b.usual - a.usual);
 }

@@ -7,7 +7,7 @@ import {
   setInsightFlag, resolveInsightFlag, clearInsightFlag, type Db,
 } from './db/db';
 import {
-  listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, listFlags, listInsightFlags,
+  listMonths, listCards, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, listFlags, listInsightFlags,
 } from './db/queries';
 import { parseIsracardBuffer } from '../shared/import/isracard';
 import { exportBackup, restoreData } from './db/backup';
@@ -150,13 +150,14 @@ function registerIpc() {
     else assignMerchant(db, merchant, key);
   });
   ipcMain.handle('undoMapMerchant', (_e, merchant: string) => undoMerchant(db, merchant));
-  ipcMain.handle('monthTotals', () => monthTotals(db));
-  ipcMain.handle('recurringTimeline', () => recurringTimelineRows(db));
+  ipcMain.handle('cards', () => listCards(db));
+  ipcMain.handle('monthTotals', (_e, card?: string) => monthTotals(db, card));
+  ipcMain.handle('recurringTimeline', (_e, card?: string) => recurringTimelineRows(db, card));
   ipcMain.handle('categories', () => listCategories(db));
   ipcMain.handle('addCategory', (_e, name: string, color: string) => addCategory(db, name, color));
-  ipcMain.handle('summary', (_e, month: string) => monthSummary(db, month));
-  ipcMain.handle('transactions', (_e, month: string) => monthTransactions(db, month));
-  ipcMain.handle('insights', (_e, month: string) => monthInsights(db, month));
+  ipcMain.handle('summary', (_e, month: string, card?: string) => monthSummary(db, month, card));
+  ipcMain.handle('transactions', (_e, month: string, card?: string) => monthTransactions(db, month, card));
+  ipcMain.handle('insights', (_e, month: string, card?: string) => monthInsights(db, month, card));
   ipcMain.handle('setCategory', (_e, id: string, key: string, all: boolean) => setCategory(db, id, key, all));
   ipcMain.handle('setFlag', (_e, id: string, kind: FlagKind, comment: string) => setFlag(db, id, kind, comment));
   ipcMain.handle('resolveFlag', (_e, id: string, resolved: boolean) => resolveFlag(db, id, resolved));

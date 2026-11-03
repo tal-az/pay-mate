@@ -1,10 +1,11 @@
 import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
-import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
+import { insightsFor, monthOf, recurringTimeline } from '../../shared/core/insights';
+import { filterByCard, listCards as cardsOf, totalsByCard } from '../../shared/core/cards';
 import type { BackupData, BackupRule, BackupTransaction } from '../../shared/backup';
 import { FLAG_KINDS, MAX_FLAG_COMMENT, insightFlagKey } from '../../shared/api';
 import type {
   FlagKind, FlaggedTx, InsightFlag, TxFlag,
-  Budget, Category, CategoryTotal, Insight, LastUpdate, MerchantTotal, MonthSummary, MonthTotal, TimelineRow, TxRow, UnknownMerchant,
+  Budget, CardInfo, Category, CategoryTotal, Insight, LastUpdate, MerchantTotal, MonthSummary, MonthTotal, TimelineRow, TxRow, UnknownMerchant,
 } from '../../shared/api';
 import type { ParsedStatement, Source } from '../../shared/types';
 
@@ -61,7 +62,7 @@ export function importStatement(data: BackupData, stmt: ParsedStatement, label: 
     });
     added++;
   }
-  data.imports.push({ at: new Date().toISOString(), source, label, added, skipped });
+  data.imports.push({ at: new Date().toISOString(), company: stmt.company, source, label, added, skipped });
   return { added, skipped };
 }
 
@@ -184,6 +185,7 @@ function toTx(t: BackupTransaction, flags: Map<string, TxFlag>): TxRow {
     standingOrder: t.standingOrder,
     foreignSite: t.foreignSite,
     discount: t.discount,
+    company: t.company,
     cardLast4: t.cardLast4,
     ...(f ? { flag: { kind: f.kind, resolved: f.resolved, comment: f.comment } } : {}),
   };
@@ -209,17 +211,21 @@ export function allTransactions(data: BackupData): TxRow[] {
   return data.transactions.map((t) => toTx(t, flags)).sort(newestFirst);
 }
 
-export function monthTransactions(data: BackupData, month: string): TxRow[] {
-  return allTransactions(data).filter((t) => monthOf(t) === month);
+export function monthTransactions(data: BackupData, month: string, card?: string): TxRow[] {
+  return filterByCard(allTransactions(data), card).filter((t) => monthOf(t) === month);
 }
 
-export function listMonths(data: BackupData): string[] {
-  return [...new Set(data.transactions.map(monthOf))].sort().reverse();
+export function listMonths(data: BackupData, card?: string): string[] {
+  return [...new Set(filterByCard(data.transactions, card).map(monthOf))].sort().reverse();
 }
 
-export function monthTotals(data: BackupData): MonthTotal[] {
+export function listCards(data: BackupData): CardInfo[] {
+  return cardsOf(data.transactions, data.imports);
+}
+
+export function monthTotals(data: BackupData, card?: string): MonthTotal[] {
   const totals = new Map<string, number>();
-  for (const t of data.transactions) totals.set(monthOf(t), (totals.get(monthOf(t)) ?? 0) + t.chargedAmount);
+  for (const t of filterByCard(data.transactions, card)) totals.set(monthOf(t), (totals.get(monthOf(t)) ?? 0) + t.chargedAmount);
   return [...totals.entries()]
     .map(([month, total]) => ({ month, total }))
     .sort((a, b) => (a.month < b.month ? 1 : -1))
@@ -227,8 +233,8 @@ export function monthTotals(data: BackupData): MonthTotal[] {
     .reverse();
 }
 
-export function recurringTimelineRows(data: BackupData): TimelineRow[] {
-  return recurringTimeline(allTransactions(data), 6);
+export function recurringTimelineRows(data: BackupData, card?: string): TimelineRow[] {
+  return recurringTimeline(allTransactions(data), 6, card);
 }
 
 /** Businesses in a month that landed in "other" automatically and that the user has not decided about yet. */
@@ -253,10 +259,10 @@ export function lastUpdate(data: BackupData): LastUpdate | null {
   return last;
 }
 
-export function monthSummary(data: BackupData, month: string): MonthSummary {
-  const rows = monthTransactions(data, month);
-  const prevMonth = listMonths(data).filter((m) => m < month)[0] ?? null;
-  const prevTotal = prevMonth ? monthTransactions(data, prevMonth).reduce((s, t) => s + t.chargedAmount, 0) : null;
+export function monthSummary(data: BackupData, month: string, card?: string): MonthSummary {
+  const rows = monthTransactions(data, month, card);
+  const prevMonth = listMonths(data, card).filter((m) => m < month)[0] ?? null;
+  const prevTotal = prevMonth ? monthTransactions(data, prevMonth, card).reduce((s, t) => s + t.chargedAmount, 0) : null;
 
   const categories = categoriesOf(data);
   const byCat = new Map<string, CategoryTotal>();
@@ -279,15 +285,16 @@ export function monthSummary(data: BackupData, month: string): MonthSummary {
     prevTotal,
     transactionCount: rows.length,
     cards: [...new Set(rows.map((t) => t.cardLast4))],
+    byCard: totalsByCard(rows),
     byCategory: [...byCat.values()].sort((a, b) => b.amount - a.amount),
     topMerchants: [...byMerchant.values()].sort((a, b) => b.amount - a.amount).slice(0, 5),
   };
 }
 
-export function monthInsights(data: BackupData, month: string): Insight[] {
-  return buildInsights({
+export function monthInsights(data: BackupData, month: string, card?: string): Insight[] {
+  return insightsFor({
     month,
-    prevMonth: listMonths(data).filter((m) => m < month)[0] ?? null,
+    card,
     all: allTransactions(data),
     categoryNames: Object.fromEntries(categoriesOf(data).map((c) => [c.key, c.name])),
   });

@@ -97,7 +97,8 @@ button, select, input { font: inherit; color: inherit; }
 @keyframes page-in { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
-.topbar .sub { color: var(--ink-2); font-size: 15px; }
+.topbar .sub { color: var(--ink-2); font-size: 15px; white-space: nowrap; }
+.topbar-selects { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .month-select {
   appearance: none;
   background-color: var(--paper);
@@ -298,6 +299,8 @@ input.money { width: 120px; text-align: left; }
   .drop { padding: 28px 16px; }
   .nudge { left: 16px; bottom: 16px; max-width: calc(100vw - 32px); }
   table.tx { display: block; overflow-x: auto; }
+  /* Tags wrap under the merchant, so they don't push the amount off the screen. */
+  table.tx .flag { display: inline-block; margin-block: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

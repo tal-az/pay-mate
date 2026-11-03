@@ -59,8 +59,26 @@ export interface TxRow {
   standingOrder: boolean;
   foreignSite: boolean;
   discount: number;
+  company: string;
   cardLast4: string;
   flag?: { kind: FlagKind; resolved: boolean; comment: string };
+}
+
+export interface CardTotal {
+  /** The card's id across companies, see cardKey. */
+  key: string;
+  company: string;
+  last4: string;
+  amount: number;
+  count: number;
+}
+
+export interface CardInfo {
+  key: string;
+  company: string;
+  last4: string;
+  /** ISO timestamp of the last successful sync or file import from this card's company. */
+  updatedAt: string | null;
 }
 
 export interface CategoryTotal {
@@ -84,6 +102,7 @@ export interface MonthSummary {
   prevTotal: number | null;
   transactionCount: number;
   cards: string[];
+  byCard: CardTotal[];
   byCategory: CategoryTotal[];
   topMerchants: MerchantTotal[];
 }
@@ -111,7 +130,10 @@ export interface TimelineCell {
 
 export interface TimelineRow {
   merchant: string;
+  /** The card's id across companies, see cardKey. */
   card: string;
+  company: string;
+  cardLast4: string;
   usual: number;
   cells: TimelineCell[];
   holes: number;
@@ -199,10 +221,12 @@ export interface PayMateApi {
   /** Maps a business to a category in every month; "other" means leave it as other. */
   mapMerchant(merchant: string, categoryKey: string): Promise<void>;
   undoMapMerchant(merchant: string): Promise<void>;
-  monthTotals(): Promise<MonthTotal[]>;
-  recurringTimeline(): Promise<TimelineRow[]>;
-  summary(month: string): Promise<MonthSummary>;
-  transactions(month: string): Promise<TxRow[]>;
+  /** Every card that has transactions. In the calls below, `card` narrows the result to one of them; without it they cover all cards. */
+  cards(): Promise<CardInfo[]>;
+  monthTotals(card?: string): Promise<MonthTotal[]>;
+  recurringTimeline(card?: string): Promise<TimelineRow[]>;
+  summary(month: string, card?: string): Promise<MonthSummary>;
+  transactions(month: string, card?: string): Promise<TxRow[]>;
   categories(): Promise<Category[]>;
   /** Creates a category of the user's own. Rejects with a Hebrew message when the name is empty, too long or taken. */
   addCategory(name: string, color: string): Promise<Category>;
@@ -219,7 +243,7 @@ export interface PayMateApi {
   resolveInsightFlag(key: string, resolved: boolean): Promise<void>;
   clearInsightFlag(key: string): Promise<void>;
   insightFlags(): Promise<InsightFlag[]>;
-  insights(month: string): Promise<Insight[]>;
+  insights(month: string, card?: string): Promise<Insight[]>;
   budgets(): Promise<Budget[]>;
   setBudget(categoryKey: string, monthlyAmount: number | null): Promise<void>;
   importFiles(files: ImportInput[]): Promise<ImportResult[]>;
