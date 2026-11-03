@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categorize } from '../electron/core/categorize';
+import { categorize } from '../shared/core/categorize';
 
 const cat = (merchant: string, flags: { standingOrder?: boolean; foreignSite?: boolean } = {}) =>
   categorize({ merchant, standingOrder: false, foreignSite: false, ...flags }, []);

@@ -1,9 +1,7 @@
-import { posix } from 'node:path';
-import { readFile } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
-import { cleanText, currencyCode, fallbackId, normalizeMerchant } from '../../core/normalize';
-import type { ParsedStatement, ParsedTransaction } from '../../../shared/types';
+import { cleanText, currencyCode, fallbackId, normalizeMerchant } from '../core/normalize';
+import type { ParsedStatement, ParsedTransaction } from '../types';
 
 const HEADER_MARKER = 'תאריך רכישה';
 const TOTAL_MARKER = 'סה"כ לחיוב';
@@ -57,22 +55,32 @@ function findHeaderRow(ws: ExcelJS.Worksheet | undefined): number {
   return 0;
 }
 
+/** Directory of a zip entry name: "xl/_rels/x.rels" -> "xl/_rels", "x.xml" -> "". */
+const dirOf = (name: string) => name.split('/').slice(0, -1).join('/');
+
+/** Path from directory `from` to the file `to`, both zip paths without a leading slash. */
+function relativePath(from: string, to: string): string {
+  const a = from.split('/').filter(Boolean);
+  const b = to.split('/').filter(Boolean);
+  let i = 0;
+  while (i < a.length && i < b.length - 1 && a[i] === b[i]) i++;
+  return [...a.slice(i).map(() => '..'), ...b.slice(i)].join('/');
+}
+
 /**
  * Isracard's export is written by a library that (1) uses absolute relationship targets
  * ("/xl/workbook.xml") and (2) prefixes every spreadsheet element with "x:". exceljs
  * handles neither, so rewrite the package into the conventional shape first.
  */
-async function normalizePackage(buffer: Buffer): Promise<Buffer> {
+async function normalizePackage(buffer: ArrayBuffer | Uint8Array): Promise<Uint8Array> {
   const zip = await JSZip.loadAsync(buffer);
   for (const name of Object.keys(zip.files)) {
     const isRels = name.endsWith('.rels');
     if (!isRels && !name.endsWith('.xml')) continue;
     let xml = (await zip.files[name].async('string')).replace(/^﻿/, '');
     if (isRels) {
-      const baseDir = posix.dirname(posix.dirname(name)); // "<dir>/_rels/x.rels" -> "<dir>"
-      xml = xml.replace(/Target="\/([^"]+)"/g, (_m, target: string) => {
-        return `Target="${posix.relative(baseDir === '.' ? '/' : '/' + baseDir, '/' + target)}"`;
-      });
+      const baseDir = dirOf(dirOf(name)); // "<dir>/_rels/x.rels" -> "<dir>"
+      xml = xml.replace(/Target="\/([^"]+)"/g, (_m, target: string) => `Target="${relativePath(baseDir, target)}"`);
     } else if (xml.includes('xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"')) {
       xml = xml
         .replace('xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
@@ -81,12 +89,13 @@ async function normalizePackage(buffer: Buffer): Promise<Buffer> {
     }
     zip.file(name, xml);
   }
-  return zip.generateAsync({ type: 'nodebuffer' });
+  return zip.generateAsync({ type: 'uint8array' });
 }
 
-export async function parseIsracardFile(path: string): Promise<ParsedStatement> {
+/** Parses the bytes of an Isracard .xlsx export. Runs in Node and in a browser. */
+export async function parseIsracardBuffer(data: ArrayBuffer | Uint8Array): Promise<ParsedStatement> {
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load((await normalizePackage(await readFile(path))) as unknown as ArrayBuffer);
+  await wb.xlsx.load((await normalizePackage(data)) as unknown as ArrayBuffer);
   return parseIsracardWorkbook(wb);
 }
 

@@ -1,5 +1,5 @@
-import { buildInsights, monthOf, recurringTimeline } from '../electron/core/insights';
-import { CATEGORY_SEEDS } from '../electron/core/categorize';
+import { buildInsights, monthOf, recurringTimeline } from '../shared/core/insights';
+import { CATEGORY_SEEDS } from '../shared/core/categorize';
 import type {
   Budget, Category, ImportResult, MonthSummary, PayMateApi, TxRow,
 } from '../shared/api';

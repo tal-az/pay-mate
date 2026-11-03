@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInsights, recurringTimeline } from '../electron/core/insights';
+import { buildInsights, recurringTimeline } from '../shared/core/insights';
 import type { TxRow } from '../shared/api';
 
 let n = 0;

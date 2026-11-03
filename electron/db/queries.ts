@@ -1,5 +1,5 @@
 import type { Db } from './db';
-import { buildInsights, monthOf, recurringTimeline } from '../core/insights';
+import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
 import type {
   Budget, Category, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
 } from '../../shared/api';

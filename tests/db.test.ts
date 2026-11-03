@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { openDb, importStatement, setCategory } from '../electron/db/db';
 import { lastUpdate } from '../electron/db/queries';
-import { categorize } from '../electron/core/categorize';
+import { categorize } from '../shared/core/categorize';
 import type { ParsedStatement, ParsedTransaction } from '../shared/types';
 
 const tx = (over: Partial<ParsedTransaction>): ParsedTransaction => ({

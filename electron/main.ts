@@ -2,11 +2,12 @@ import { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } from 'elec
 import { autoUpdater } from 'electron-updater';
 import { join, basename } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, type Db } from './db/db';
 import {
   listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget,
 } from './db/queries';
-import { parseIsracardFile } from './sources/excel/isracard';
+import { parseIsracardBuffer } from '../shared/import/isracard';
 import { mapAccounts, failureFromErrorType, failureMessage, type ScrapedAccount } from './sources/sync/map';
 import type { ImportResult, SyncRequest, SyncResult, SyncFailure } from '../shared/api';
 import { findProvider, type ProviderKey } from '../shared/providers';
@@ -42,7 +43,7 @@ async function importOne(path: string): Promise<ImportResult> {
   const file = basename(path);
   try {
     if (!/\.xlsx$/i.test(path)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט');
-    const stmt = await parseIsracardFile(path);
+    const stmt = await parseIsracardBuffer(await readFile(path));
     const { added, skipped } = importStatement(db, stmt, file, 'excel');
     const sum = stmt.transactions.reduce((s, t) => s + t.chargedAmount, 0);
     return {

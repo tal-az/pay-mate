@@ -1,4 +1,4 @@
-import { cleanText, currencyCode, fallbackId, normalizeMerchant } from '../../core/normalize';
+import { cleanText, currencyCode, fallbackId, normalizeMerchant } from '../../../shared/core/normalize';
 import type { ParsedStatement, ParsedTransaction } from '../../../shared/types';
 import type { SyncFailure } from '../../../shared/api';
 import { findProvider, type ProviderKey } from '../../../shared/providers';
