@@ -1,16 +1,42 @@
 /* Mapping game */
-.mapping { max-width: 760px; }
+.mapping { max-width: 760px; position: relative; }
 .mprogress { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
 .mprogress .meter { flex: 1; }
 .mcount { font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+.mmeter { height: 14px; border-radius: 7px; overflow: hidden; }
+.mmeter i {
+  border-radius: 7px;
+  background: repeating-linear-gradient(-45deg, var(--tag) 0 10px, #e8b933 10px 20px);
+  background-size: 28px 28px;
+  animation: stripes 900ms linear infinite;
+  transition: width 420ms var(--ease-out);
+}
+@keyframes stripes { to { background-position: 28px 0; } }
+.mmute { all: unset; cursor: pointer; font-size: 18px; line-height: 1; padding: 6px; border-radius: 8px; }
+.mmute:hover { background: var(--line); }
+.mmute:focus-visible { outline: 3px solid var(--focus); }
 
+/* The card sits on a soft spotlight stage */
+.mstage {
+  position: relative;
+  padding: 34px 28px 22px;
+  border-radius: 18px;
+  background: radial-gradient(120% 140% at 50% 0%, #fff6d6 0%, var(--paper) 60%);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 28px rgba(34, 30, 24, 0.07);
+  overflow: hidden;
+}
 .mcard {
   position: relative;
   padding: 8px 0 4px;
-  animation: card-in 280ms var(--ease-out);
+  animation: card-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.mcard.leaving { transform: translateX(-90px) rotate(-5deg); opacity: 0; transition: transform 240ms var(--ease-out), opacity 240ms var(--ease-out); }
-@keyframes card-in { from { transform: translateY(14px) scale(0.98); opacity: 0; } to { transform: none; opacity: 1; } }
+.mcard.leaving {
+  transform: translate(var(--fly-x, -90px), -40px) rotate(var(--fly-r, -5deg)) scale(0.9);
+  opacity: 0;
+  transition: transform 240ms var(--ease-out), opacity 240ms var(--ease-out);
+}
+@keyframes card-in { from { transform: translateY(26px) rotate(2deg) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .mtag {
   display: inline-block;
@@ -21,34 +47,78 @@
   clip-path: polygon(0 50%, 40px 0, 100% 0, 100% 100%, 40px 100%);
 }
 .mname { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; }
-.mmeta { margin-top: 10px; color: var(--ink-2); font-size: 15px; }
+.mmeta { margin-top: 12px; color: var(--ink-2); font-size: 15px; }
 
 .stamp {
   position: absolute; top: 14px; inset-inline-start: 24px;
   border: 3px solid; border-radius: 8px; background: var(--paper);
-  padding: 4px 14px; font-weight: 800; font-size: 20px; transform: rotate(-7deg);
-  animation: stamp 200ms var(--ease-out);
+  padding: 4px 14px; font-weight: 800; font-size: 22px; transform: rotate(-7deg);
+  animation: stamp 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-@keyframes stamp { from { transform: rotate(-7deg) scale(1.5); opacity: 0; } to { transform: rotate(-7deg) scale(1); opacity: 1; } }
+@keyframes stamp { from { transform: rotate(-7deg) scale(2); opacity: 0; } to { transform: rotate(-7deg) scale(1); opacity: 1; } }
+
+/* Streak combo */
+.combo {
+  position: absolute; top: 10px; inset-inline-end: 14px; z-index: 2;
+  padding: 4px 14px; border-radius: 999px; font-weight: 800; font-size: 15px;
+  background: var(--ink); color: var(--tag);
+  animation: combo-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.combo.hot2 { background: linear-gradient(90deg, #e8743b, #d9381e); color: #fff; }
+.combo.hot3 { background: linear-gradient(90deg, #c15fa8, #4a8fe0, #3c9d6b); color: #fff; box-shadow: 0 0 18px rgba(193, 95, 168, 0.55); }
+.combo .flame { display: inline-block; animation: flicker 700ms ease-in-out infinite alternate; }
+@keyframes combo-pop { from { transform: scale(0.4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes flicker { to { transform: scale(1.2) rotate(8deg); } }
 
 .mchoices { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 22px 0 16px; }
 .mchip {
+  position: relative; overflow: hidden;
   display: flex; align-items: center; gap: 10px; text-align: start;
   min-height: 48px; padding: 8px 14px;
   background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
   cursor: pointer; font-size: 16px;
-  transition: border-color 140ms var(--ease-out), transform 140ms var(--ease-out);
+  transition: border-color 140ms var(--ease-out), transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
 }
-.mchip:hover:not(:disabled) { border-color: var(--ink); transform: translateY(-1px); }
-.mchip:active:not(:disabled) { transform: scale(0.98); }
+.mchip::before {
+  content: ''; position: absolute; inset: 0; background: var(--cat); opacity: 0;
+  transition: opacity 140ms var(--ease-out);
+}
+.mchip > * { position: relative; }
+.mchip:hover:not(:disabled) { border-color: var(--cat); transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 14px rgba(34, 30, 24, 0.12); }
+.mchip:hover:not(:disabled)::before { opacity: 0.14; }
+.mchip:active:not(:disabled) { transform: scale(0.95); }
 .mchip:disabled { cursor: default; opacity: 0.6; }
+.mchip .dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 25%, transparent); }
 .mchip span:nth-child(2) { flex: 1; }
-.mchip kbd { font: inherit; font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; min-width: 20px; text-align: center; }
+.mchip kbd { font: inherit; font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; min-width: 20px; text-align: center; background: var(--paper); }
 
 .mactions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.mfeedback { margin: 0; font-weight: 600; min-width: 140px; }
+.mfeedback { margin: 0; font-weight: 600; min-width: 140px; animation: fade-up 300ms var(--ease-out); }
+@keyframes fade-up { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+.mmoney { color: var(--leaf); font-size: 1.1em; }
 .mdone { padding-top: 24px; }
 .mtag-big { display: inline-block; font-size: 56px; margin-bottom: 16px; }
+.mpop { animation: combo-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.mbest { font-weight: 700; margin: 4px 0; }
+
+/* Confetti */
+.mfx { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+.mp {
+  position: absolute; display: block; border-radius: 2px;
+  animation: confetti 900ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.mp.round { border-radius: 50%; }
+.mp.slow { animation-duration: 1900ms; animation-timing-function: cubic-bezier(0.3, 0.5, 0.6, 1); }
+@keyframes confetti {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--dx), calc(var(--dy) + 140px)) rotate(var(--rot)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mmeter i, .combo .flame { animation: none; }
+  .mcard, .stamp, .combo, .mpop, .mfeedback { animation: none; }
+}
 
 /* Corner nudge */
 .nudge {

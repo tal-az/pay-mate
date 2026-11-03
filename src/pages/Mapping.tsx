@@ -1,11 +1,59 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { api } from '../api';
 import { ils, monthLabel, shortDate } from '../format';
+import { blip, burst, reducedMotion, shower, type Particle } from '../fx';
 import type { UnknownMerchant } from '../../shared/api';
 import type { Shared } from '../App';
 
 const PRAISE = ['יופי!', 'מעולה.', 'נחתם.', 'אתם על זה.', 'עוד אחד ירד מ"אחר".', 'קלי קלות.'];
 const LEAVE_MS = 240;
+const CONFETTI = ['#f2c94c', '#e8743b', '#3c9d6b', '#4a8fe0', '#c15fa8', '#ffffff'];
+
+function comboLabel(n: number) {
+  if (n >= 10) return 'בלתי עצרים';
+  if (n >= 5) return 'על האש';
+  return 'רצף';
+}
+
+/** Counts up to `value` so money leaving "other" feels like it lands. */
+function useCountUp(value: number) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    if (reducedMotion()) {
+      setShown(value);
+      from.current = value;
+      return;
+    }
+    const a = from.current;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / 600);
+      const v = a + (value - a) * (1 - (1 - k) ** 3);
+      setShown(v);
+      from.current = v;
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return shown;
+}
+
+function Particles({ list, slow }: { list: Particle[]; slow?: boolean }) {
+  return (
+    <div className="mfx" aria-hidden="true">
+      {list.map((p) => (
+        <i
+          key={p.id}
+          className={`mp${p.round ? ' round' : ''}${slow ? ' slow' : ''}`}
+          style={{ left: p.x, top: p.y, width: p.size, height: p.size, background: p.color, '--dx': `${p.dx}px`, '--dy': `${p.dy}px`, '--rot': `${p.rot}deg` } as CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
 
 interface Done {
   item: UnknownMerchant;
@@ -21,10 +69,22 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
   const [leaving, setLeaving] = useState<{ label: string; color: string } | null>(null);
   const [feedback, setFeedback] = useState('');
   const [streak, setStreak] = useState(0);
+  const [best, setBest] = useState(0);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [fly, setFly] = useState({ x: -90, r: -5 });
+  const [muted, setMuted] = useState(() => {
+    try {
+      return localStorage.getItem('paymate.mute') === '1';
+    } catch {
+      return false;
+    }
+  });
   const busy = useRef(false);
+  const finished = useRef(false);
   const praiseIndex = useRef(0);
 
   const choices = categories.filter((c) => c.key !== 'other');
+  const countedMoved = useCountUp(moved);
 
   useEffect(() => {
     if (!month) return;
@@ -32,7 +92,9 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
     setHistory([]);
     setMoved(0);
     setStreak(0);
+    setBest(0);
     setFeedback('');
+    finished.current = false;
     void api.unknownMerchants(month).then((list) => {
       setQueue(list);
       setStart(list.length);
@@ -41,20 +103,45 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
 
   const current = queue?.[0];
 
+  const spawn = useCallback((list: Particle[]) => {
+    if (list.length === 0) return;
+    const ids = new Set(list.map((p) => p.id));
+    setParticles((p) => [...p, ...list]);
+    setTimeout(() => setParticles((p) => p.filter((x) => !ids.has(x.id))), 2200);
+  }, []);
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    try {
+      localStorage.setItem('paymate.mute', next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
+
   const choose = useCallback(async (key: string) => {
     if (!current || busy.current) return;
     busy.current = true;
     const cat = categories.find((c) => c.key === key);
     const kept = key === 'other';
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    setFly({ x: dir * (110 + Math.random() * 60), r: dir * (5 + Math.random() * 8) });
+    const rect = document.querySelector<HTMLElement>(`[data-cat="${key}"]`)?.getBoundingClientRect();
+    if (rect && !kept) {
+      const power = 1 + Math.min(streak, 8) * 0.25;
+      spawn(burst(rect.left + rect.width / 2, rect.top + rect.height / 2, [cat?.color ?? '#f2c94c', ...CONFETTI], power));
+    }
+    if (!muted) blip(kept ? 0 : streak + 1);
     setLeaving({ label: kept ? 'נשאר באחר' : cat?.name ?? '', color: cat?.color ?? '#898781' });
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    await new Promise((r) => setTimeout(r, reduce ? 0 : LEAVE_MS));
+    await new Promise((r) => setTimeout(r, reducedMotion() ? 0 : LEAVE_MS));
     await api.mapMerchant(current.merchant, key);
     setQueue((q) => q?.slice(1) ?? q);
     setHistory((h) => [...h, { item: current, label: kept ? 'אחר' : cat?.name ?? '', kept }]);
     if (!kept) {
       setMoved((m) => m + current.total);
       setStreak((s) => s + 1);
+      setBest((b) => Math.max(b, streak + 1));
     } else {
       setStreak(0);
     }
@@ -63,7 +150,7 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
     setLeaving(null);
     busy.current = false;
     refresh();
-  }, [current, categories, streak, refresh]);
+  }, [current, categories, streak, refresh, spawn, muted]);
 
   const skip = useCallback(() => {
     if (!queue || queue.length < 2 || busy.current) return;
@@ -82,9 +169,20 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
     if (!last.kept) setMoved((m) => m - last.item.total);
     setStreak(0);
     setFeedback('בוטל.');
+    if (!muted) blip(0, 'undo');
     busy.current = false;
     refresh();
-  }, [history, refresh]);
+  }, [history, refresh, muted]);
+
+  // Celebrate when the last merchant is sorted.
+  useEffect(() => {
+    if (queue && queue.length === 0 && start > 0 && history.length > 0 && !finished.current) {
+      finished.current = true;
+      spawn(shower(CONFETTI));
+      if (!muted) blip(0, 'win');
+    }
+    if (queue && queue.length > 0) finished.current = false;
+  }, [queue, start, history.length, spawn, muted]);
 
   // Number keys pick the matching category.
   useEffect(() => {
@@ -125,8 +223,10 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
   if (!current) {
     return (
       <div className="mdone">
-        <div className="price-tag mtag-big">סיימנו</div>
+        <Particles list={particles} slow />
+        <div className="price-tag mtag-big mpop">סיימנו 🎉</div>
         <h1 className="page-title">{monthLabel(month)} מסודר</h1>
+        {best >= 3 && <p className="mbest">הרצף הכי ארוך שלכם: {best} 🔥</p>}
         <p className="help" style={{ margin: '8px 0 20px' }}>
           מיפיתם {mappedCount} עסקים
           {done > mappedCount ? `, והשארתם ${done - mappedCount} באחר` : ''}.
@@ -140,30 +240,55 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
     );
   }
 
+  const pct = (done / start) * 100;
+
   return (
     <div className="mapping">
+      <Particles list={particles} />
       <h1 className="page-title">מי זה? · {monthLabel(month)}</h1>
       <p className="help" style={{ margin: '4px 0 16px' }}>
         עסקים שאני לא מכיר. לאיזו קטגוריה לשייך? אפשר ללחוץ גם על המספר במקלדת.
       </p>
 
       <div className="mprogress" role="progressbar" aria-valuemin={0} aria-valuemax={start} aria-valuenow={done} aria-label="התקדמות">
-        <span className="meter"><i style={{ width: `${(done / start) * 100}%`, background: 'var(--ink)' }} /></span>
+        <span className="meter mmeter"><i style={{ width: `${pct}%` }} /></span>
         <span className="mcount">{done} מתוך {start}</span>
+        <button className="mmute" onClick={toggleMute} aria-pressed={muted} aria-label={muted ? 'הפעלת צלילים' : 'השתקת צלילים'} title={muted ? 'הפעלת צלילים' : 'השתקת צלילים'}>
+          {muted ? '🔇' : '🔊'}
+        </button>
       </div>
 
-      <div className={`mcard ${leaving ? 'leaving' : ''}`} key={current.merchant} aria-live="polite">
-        <div className="mtag"><span className="mname">{current.merchant}</span></div>
-        <p className="mmeta">
-          {current.count === 1 ? 'חיוב אחד' : `${current.count} חיובים`} · {ils(current.total)} ·{' '}
-          {current.firstDate === current.lastDate ? shortDate(current.firstDate) : `${shortDate(current.firstDate)}–${shortDate(current.lastDate)}`}
-        </p>
-        {leaving && <span className="stamp" style={{ borderColor: leaving.color }}>{leaving.label}</span>}
+      <div className="mstage">
+        {streak >= 2 && (
+          <div className={`combo ${streak >= 10 ? 'hot3' : streak >= 5 ? 'hot2' : ''}`} key={streak} aria-hidden="true">
+            <span className="flame">{streak >= 5 ? '🔥' : '✨'}</span> {comboLabel(streak)} ×{streak}
+          </div>
+        )}
+        <div
+          className={`mcard ${leaving ? 'leaving' : ''}`}
+          key={current.merchant}
+          aria-live="polite"
+          style={{ '--fly-x': `${fly.x}px`, '--fly-r': `${fly.r}deg` } as CSSProperties}
+        >
+          <div className="mtag"><span className="mname">{current.merchant}</span></div>
+          <p className="mmeta">
+            {current.count === 1 ? 'חיוב אחד' : `${current.count} חיובים`} · {ils(current.total)} ·{' '}
+            {current.firstDate === current.lastDate ? shortDate(current.firstDate) : `${shortDate(current.firstDate)}–${shortDate(current.lastDate)}`}
+          </p>
+          {leaving && <span className="stamp" style={{ borderColor: leaving.color, color: leaving.color }}>{leaving.label}</span>}
+        </div>
       </div>
 
       <div className="mchoices" role="group" aria-label="קטגוריות">
         {choices.map((c, i) => (
-          <button key={c.key} className="mchip" onClick={() => void choose(c.key)} disabled={!!leaving}>
+          <button
+            key={c.key}
+            data-cat={c.key}
+            className="mchip"
+            style={{ '--cat': c.color } as CSSProperties}
+            onClick={() => void choose(c.key)}
+            disabled={!!leaving}
+          >
             <span className="dot" style={{ background: c.color }} />
             <span>{c.name}</span>
             <kbd>{i === 9 ? 0 : i + 1}</kbd>
@@ -177,7 +302,11 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
         <button className="btn" onClick={() => void undo()} disabled={!!leaving || history.length === 0}>ביטול</button>
         <p className="mfeedback" role="status">{feedback}</p>
       </div>
-      {moved > 0 && <p className="help" style={{ marginTop: 14 }}>עד עכשיו: {ils(moved)} עברו מ"אחר" לקטגוריות.</p>}
+      {moved > 0 && (
+        <p className="help" style={{ marginTop: 14 }}>
+          עד עכשיו: <b className="mmoney">{ils(Math.round(countedMoved))}</b> עברו מ"אחר" לקטגוריות.
+        </p>
+      )}
     </div>
   );
 }
