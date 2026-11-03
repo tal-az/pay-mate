@@ -4,6 +4,7 @@ import { monthLabel } from '../format';
 import type { ImportResult, SyncResult } from '../../shared/api';
 import { PROVIDERS, findProvider, type ProviderKey } from '../../shared/providers';
 import type { Shared } from '../App';
+import { ACCENTS, applyAccent, currentAccent } from '../accent';
 import { BackupError } from '../../shared/backup';
 import { MIN_PASSWORD_LENGTH, decryptBackup, encryptBackup, isEncryptedBackup } from '../../shared/backupCrypto';
 
@@ -28,6 +29,7 @@ function saveCompany(key: ProviderKey) {
 
 export function ImportPage({ refresh, notify }: Shared) {
   const [company, setCompany] = useState<ProviderKey | null>(loadCompany);
+  const [accent, setAccent] = useState(currentAccent);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncProgress, setSyncProgress] = useState('');
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
@@ -299,6 +301,20 @@ export function ImportPage({ refresh, notify }: Shared) {
           ))}
         </section>
       )}
+
+      <section className="section">
+        <h2 className="section-title">צבע האפליקציה</h2>
+        <p className="help">בחרו את הצבע שמסמן את הכפתורים, התגיות והתפריט. הבחירה נשמרת במחשב הזה.</p>
+        <div className="swatches accent-swatches" role="radiogroup" aria-label="צבע האפליקציה">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.key} type="button" role="radio" aria-checked={accent.key === a.key} aria-label={a.name} title={a.name}
+              className={accent.key === a.key ? 'swatch on' : 'swatch'} style={{ background: a.color }}
+              onClick={() => { applyAccent(a, true); setAccent(a); }}
+            />
+          ))}
+        </div>
+      </section>
 
       <section className="section">
         <h2 className="section-title">גיבוי ושחזור</h2>

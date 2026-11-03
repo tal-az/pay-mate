@@ -8,7 +8,7 @@ import type { Shared } from '../App';
 
 const PRAISE = ['יופי!', 'מעולה.', 'נחתם.', 'אתם על זה.', 'עוד אחד ירד מ"אחר".', 'קלי קלות.'];
 const LEAVE_MS = 240;
-const CONFETTI = ['#ffa8cf', '#ffd23f', '#4fe3c9', '#5b4bff', '#7f8cff', '#ffffff'];
+const CONFETTI = ['#8ee6a3', '#ffa8cf', '#ffd23f', '#5b4bff', '#7f8cff', '#ffffff'];
 
 function comboLabel(n: number) {
   if (n >= 10) return 'בלתי עצרים';
@@ -132,7 +132,7 @@ export function Mapping({ month, categories, refresh, go }: Shared) {
     const rect = document.querySelector<HTMLElement>(`[data-cat="${key}"]`)?.getBoundingClientRect();
     if (rect && !kept) {
       const power = 1 + Math.min(streak, 8) * 0.25;
-      spawn(burst(rect.left + rect.width / 2, rect.top + rect.height / 2, [cat?.color ?? '#ffa8cf', ...CONFETTI], power));
+      spawn(burst(rect.left + rect.width / 2, rect.top + rect.height / 2, [cat?.color ?? '#8ee6a3', ...CONFETTI], power));
     }
     if (!muted) blip(kept ? 0 : streak + 1);
     setLeaving({ label: kept ? 'נשאר באחר' : cat?.name ?? '', color: cat?.color ?? '#898781' });

@@ -9,7 +9,7 @@
   --rail: #1c1950;
   --rail-ink: #f6f4ff;
   --rail-ink-2: #b7b1e6;
-  --tag: #ffa8cf;
+  --tag: #8ee6a3;
   --tag-hot: #e8458f;
   --tag-ink: #12103a;
   --tomato: #d92d1a;
@@ -261,6 +261,10 @@ input.money { width: 120px; text-align: left; }
 .empty h2 { color: var(--ink); font-size: 22px; font-weight: 700; margin-bottom: 8px; }
 
 .help { color: var(--ink-2); font-size: 15px; max-width: 62ch; }
+.accent-swatches { margin-top: 12px; }
+.accent-swatches .swatch { width: 36px; height: 36px; box-shadow: 0 0 0 2px var(--ink); }
+.accent-swatches .swatch.on { box-shadow: 0 0 0 2px var(--paper), 0 0 0 5px var(--ink); }
+
 .help + .help { margin-top: 8px; }
 
 @media (max-width: 1100px) {
