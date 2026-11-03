@@ -12,6 +12,7 @@ export const ACCENTS: Accent[] = [
 ];
 
 const KEY = 'paymate.accent';
+export const CHANGED = 'paymate:accent';
 
 export function currentAccent(): Accent {
   try {
@@ -28,5 +29,6 @@ export function applyAccent(accent: Accent, remember = false): void {
   root.setProperty('--tag', accent.color);
   root.setProperty('--tag-hot', accent.hot);
   if (!remember) return;
+  window.dispatchEvent(new Event(CHANGED));
   try { localStorage.setItem(KEY, accent.key); } catch { /* the choice just won't persist */ }
 }

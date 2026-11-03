@@ -4,7 +4,7 @@ import { monthLabel } from '../format';
 import type { ImportResult, SyncResult } from '../../shared/api';
 import { PROVIDERS, findProvider, type ProviderKey } from '../../shared/providers';
 import type { Shared } from '../App';
-import { ACCENTS, applyAccent, currentAccent } from '../accent';
+import { ACCENTS, CHANGED, applyAccent, currentAccent } from '../accent';
 import { BackupError } from '../../shared/backup';
 import { MIN_PASSWORD_LENGTH, decryptBackup, encryptBackup, isEncryptedBackup } from '../../shared/backupCrypto';
 
@@ -30,6 +30,11 @@ function saveCompany(key: ProviderKey) {
 export function ImportPage({ refresh, notify }: Shared) {
   const [company, setCompany] = useState<ProviderKey | null>(loadCompany);
   const [accent, setAccent] = useState(currentAccent);
+  useEffect(() => {
+    const sync = () => setAccent(currentAccent());
+    window.addEventListener(CHANGED, sync);
+    return () => window.removeEventListener(CHANGED, sync);
+  }, []);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncProgress, setSyncProgress] = useState('');
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
