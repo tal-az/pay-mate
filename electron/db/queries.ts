@@ -1,7 +1,7 @@
 import type { Db } from './db';
 import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
 import type {
-  Budget, Category, FlagKind, FlaggedTx, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
+  Budget, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
 } from '../../shared/api';
 
 interface Row {
@@ -46,6 +46,14 @@ const SELECT_TX = `SELECT t.id, t.purchase_date, t.charge_date, t.merchant, c.ke
   t.original_amount, t.original_currency, t.standing_order, t.foreign_site, t.discount, t.card_last4,
   f.kind AS flag_kind, f.resolved AS flag_resolved, f.comment AS flag_comment
   FROM transactions t LEFT JOIN categories c ON c.id = t.category_id LEFT JOIN tx_flags f ON f.tx_id = t.id`;
+
+const INSIGHT_FLAG_COLUMNS = `key, month, insight_kind AS insightKind, text, comment, resolved, created_at AS createdAt, resolved_at AS resolvedAt`;
+
+export function listInsightFlags(db: Db): InsightFlag[] {
+  return (db.prepare(`SELECT ${INSIGHT_FLAG_COLUMNS} FROM insight_flags ORDER BY created_at DESC, key`).all() as unknown as Array<
+    Omit<InsightFlag, 'resolved'> & { resolved: number }
+  >).map((r) => ({ ...r, resolved: r.resolved === 1 }));
+}
 
 /** Every flag in all months, newest first. */
 export function listFlags(db: Db): FlaggedTx[] {

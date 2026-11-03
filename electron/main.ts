@@ -3,10 +3,11 @@ import { autoUpdater } from 'electron-updater';
 import { join } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
 import {
-  openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, addCategory, setFlag, resolveFlag, clearFlag, type Db,
+  openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, addCategory, setFlag, resolveFlag, clearFlag,
+  setInsightFlag, resolveInsightFlag, clearInsightFlag, type Db,
 } from './db/db';
 import {
-  listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, listFlags,
+  listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, listFlags, listInsightFlags,
 } from './db/queries';
 import { parseIsracardBuffer } from '../shared/import/isracard';
 import { exportBackup, restoreData } from './db/backup';
@@ -161,6 +162,11 @@ function registerIpc() {
   ipcMain.handle('resolveFlag', (_e, id: string, resolved: boolean) => resolveFlag(db, id, resolved));
   ipcMain.handle('clearFlag', (_e, id: string) => clearFlag(db, id));
   ipcMain.handle('flags', () => listFlags(db));
+  ipcMain.handle('setInsightFlag', (_e, month: string, insight: { id: string; kind: string; text: string }, comment: string) =>
+    setInsightFlag(db, month, insight, comment));
+  ipcMain.handle('resolveInsightFlag', (_e, key: string, resolved: boolean) => resolveInsightFlag(db, key, resolved));
+  ipcMain.handle('clearInsightFlag', (_e, key: string) => clearInsightFlag(db, key));
+  ipcMain.handle('insightFlags', () => listInsightFlags(db));
   ipcMain.handle('budgets', () => listBudgets(db));
   ipcMain.handle('setBudget', (_e, key: string, amount: number | null) => setBudget(db, key, amount));
   ipcMain.handle('sync', (e, request: SyncRequest) =>

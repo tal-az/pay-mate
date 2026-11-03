@@ -1,6 +1,7 @@
 import type { Db } from './db';
 import { SEED_KEYS } from '../../shared/core/categorize';
 import type { FlagKind, TxFlag } from '../../shared/api';
+import { listInsightFlags } from './queries';
 import {
   makeBackup, type Backup, type BackupBudget, type BackupCategory, type BackupData, type BackupImport, type BackupReview, type BackupRule, type BackupTransaction,
 } from '../../shared/backup';
@@ -60,7 +61,7 @@ export function exportData(db: Db): BackupData {
     .prepare('SELECT tx_id, kind, comment, resolved, created_at, resolved_at FROM tx_flags ORDER BY created_at, tx_id')
     .all() as unknown as Array<{ tx_id: string; kind: FlagKind; comment: string; resolved: number; created_at: string; resolved_at: string | null }>)
     .map((r): TxFlag => ({ txId: r.tx_id, kind: r.kind, comment: r.comment, resolved: r.resolved === 1, createdAt: r.created_at, resolvedAt: r.resolved_at }));
-  return { categories, transactions, rules, reviews, budgets, imports, flags };
+  return { categories, transactions, rules, reviews, budgets, imports, flags, insightFlags: listInsightFlags(db) };
 }
 
 export function exportBackup(db: Db): Backup {
@@ -71,7 +72,7 @@ export function exportBackup(db: Db): Backup {
 export function restoreData(db: Db, data: BackupData) {
   db.exec('BEGIN');
   try {
-    for (const table of ['transactions', 'merchant_rules', 'merchant_reviews', 'budgets', 'imports']) db.exec(`DELETE FROM ${table}`);
+    for (const table of ['transactions', 'merchant_rules', 'merchant_reviews', 'budgets', 'imports', 'insight_flags']) db.exec(`DELETE FROM ${table}`);
     // The backup's own categories replace the current ones; the built-in ones stay.
     const stale = (db.prepare('SELECT key FROM categories').all() as Array<{ key: string }>).filter((c) => !SEED_KEYS.has(c.key));
     for (const c of stale) db.prepare('DELETE FROM categories WHERE key = ?').run(c.key);
@@ -103,6 +104,12 @@ export function restoreData(db: Db, data: BackupData) {
     for (const i of data.imports) insertImport.run(i.at, i.source, i.label, i.added, i.skipped);
     const insertFlag = db.prepare('INSERT INTO tx_flags (tx_id, kind, comment, resolved, created_at, resolved_at) VALUES (?,?,?,?,?,?)');
     for (const f of data.flags ?? []) insertFlag.run(f.txId, f.kind, f.comment, f.resolved ? 1 : 0, f.createdAt, f.resolvedAt);
+    const insertInsightFlag = db.prepare(
+      'INSERT INTO insight_flags (key, month, insight_kind, text, comment, resolved, created_at, resolved_at) VALUES (?,?,?,?,?,?,?,?)',
+    );
+    for (const f of data.insightFlags ?? []) {
+      insertInsightFlag.run(f.key, f.month, f.insightKind, f.text, f.comment, f.resolved ? 1 : 0, f.createdAt, f.resolvedAt);
+    }
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');

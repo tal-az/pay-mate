@@ -3,6 +3,7 @@ import { api } from '../api';
 import { foreignAmount, ilsExact, monthLabel, shortDate } from '../format';
 import { FLAG_LABEL } from '../flags';
 import { FlagEditor } from '../components/FlagEditor';
+import { FlagIcon } from '../components/FlagIcon';
 import { DailyStrip } from '../charts/DailyStrip';
 import type { TxRow } from '../../shared/api';
 import type { Shared } from '../App';
@@ -94,12 +95,13 @@ export function Transactions({ month, months, categories, filterCategory, go, re
                   {t.standingOrder && <span className="flag">הוראת קבע</span>}
                   {t.originalCurrency !== 'ILS' && <span className="flag">{foreignAmount(t.originalCurrency, t.originalAmount)}</span>}
                   <button
-                    className={t.flag ? `flag-chip ${t.flag.kind}${t.flag.resolved ? ' resolved' : ''}` : 'flag-btn'}
+                    className="flag-btn"
                     aria-label={t.flag ? `עריכת הדגל של ${t.merchant}` : `סימון ${t.merchant} בדגל`}
-                    title={t.flag?.comment || undefined}
+                    title={t.flag ? [FLAG_LABEL[t.flag.kind], t.flag.resolved ? 'טופל' : '', t.flag.comment].filter(Boolean).join(' · ') : 'סימון בדגל'}
+                    aria-expanded={flagging === t.id}
                     onClick={() => setFlagging(flagging === t.id ? null : t.id)}
                   >
-                    {t.flag ? `${FLAG_LABEL[t.flag.kind]}${t.flag.resolved ? ' · טופל' : ''}` : 'סימון'}
+                    <FlagIcon on={!!t.flag} resolved={t.flag?.resolved} />
                   </button>
                 </td>
                 <td>
@@ -117,7 +119,13 @@ export function Transactions({ month, months, categories, filterCategory, go, re
               {flagging === t.id && (
                 <tr className="flag-row">
                   <td colSpan={4}>
-                    <FlagEditor txId={t.id} initial={t.flag} onDone={() => void flagDone()} onCancel={() => setFlagging(null)} />
+                    <FlagEditor
+                      initial={t.flag}
+                      save={(kind, comment) => api.setFlag(t.id, kind, comment)}
+                      remove={t.flag ? () => api.clearFlag(t.id) : undefined}
+                      onDone={() => void flagDone()}
+                      onCancel={() => setFlagging(null)}
+                    />
                   </td>
                 </tr>
               )}

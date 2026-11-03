@@ -18,7 +18,7 @@ export type PageId = 'overview' | 'transactions' | 'tasks' | 'insights' | 'budge
 const NAV: Array<{ id: PageId; label: string }> = [
   { id: 'overview', label: 'סקירה' },
   { id: 'transactions', label: 'עסקאות' },
-  { id: 'tasks', label: 'משימות פתוחות' },
+  { id: 'tasks', label: 'סומן למעקב' },
   { id: 'insights', label: 'תובנות' },
   { id: 'budgets', label: 'תקציבים' },
   { id: 'mapping', label: 'מיפוי עסקים' },
@@ -88,7 +88,7 @@ export function App() {
 
   // Open tasks span all months, so their count does not depend on the selected month.
   useEffect(() => {
-    void api.flags().then((l) => setTaskCount(l.filter((f) => !f.resolved).length));
+    void Promise.all([api.flags(), api.insightFlags()]).then(([a, b]) => setTaskCount([...a, ...b].filter((f) => !f.resolved).length));
   }, [tick]);
 
   // The corner offer appears when a month's window opens (or new months arrive), once, and never while playing.
@@ -122,7 +122,7 @@ export function App() {
           <button key={n.id} className="nav-item" aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
             <span>{n.label}</span>
             {n.id === 'mapping' && unknownCount > 0 && <span className="badge" aria-label={`${unknownCount} עסקים לא ממופים`}>{unknownCount}</span>}
-            {n.id === 'tasks' && taskCount > 0 && <span className="badge" aria-label={`${taskCount} משימות פתוחות`}>{taskCount}</span>}
+            {n.id === 'tasks' && taskCount > 0 && <span className="badge" aria-label={`${taskCount} פריטים לטיפול`}>{taskCount}</span>}
           </button>
         ))}
         <p className="privacy">

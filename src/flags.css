@@ -1,17 +1,23 @@
 /* Flags on transactions and the open-tasks page. Kind colours: suspicious = tomato, mistake = focus blue, attention = the accent. */
-.flag-btn, .flag-chip {
-  font: inherit; font-size: 12px; cursor: pointer; border-radius: 6px; padding: 1px 7px; margin-inline-start: 8px; white-space: nowrap;
-  background: transparent; color: var(--ink-2); border: 1px dashed var(--line);
+/* The flag button is a flag on a pole: an outline until something is flagged, then solid red. */
+.flag-btn {
+  display: inline-flex; align-items: center; vertical-align: middle; cursor: pointer; border: 0; border-radius: 6px;
+  padding: 3px; margin-inline-start: 6px; background: transparent; color: var(--ink-2);
 }
-.flag-btn { opacity: 0.6; }
-tr:hover .flag-btn, .flag-btn:focus-visible { opacity: 1; }
-.flag-btn:hover { border-color: var(--ink); color: var(--ink); }
+.flag-btn:hover { background: var(--ground); color: var(--ink); }
+.flag-btn:has(.flag-icon.on) { color: var(--tomato); }
+.flag-icon { display: block; }
+.flag-icon.resolved { opacity: 0.45; }
+.insight .flag-btn { margin-inline-start: auto; flex: none; }
+.insight-wrap + .insight-wrap { margin-top: 10px; }
+.insight-wrap .flag-editor { margin-top: 8px; }
+.insight-body { flex: 1; }
 
-.flag-chip { border-style: solid; color: var(--ink); }
+.flag-chip { font-size: 12px; border-radius: 6px; padding: 1px 7px; white-space: nowrap; background: transparent; border: 1px solid var(--line); color: var(--ink); }
 .flag-chip.suspicious { border-color: var(--tomato); color: var(--tomato); }
 .flag-chip.mistake { border-color: var(--focus); color: var(--focus); }
 .flag-chip.attention { border-color: var(--ink); background: var(--tag); color: var(--tag-ink); }
-.flag-chip.resolved { opacity: 0.55; text-decoration: line-through; }
+.flag-chip.insight { border-color: var(--ink-2); color: var(--ink-2); }
 
 .flag-row td { background: var(--ground); }
 .flag-editor { display: flex; flex-direction: column; gap: 10px; max-width: 520px; }
@@ -33,7 +39,7 @@ tr:hover .flag-btn, .flag-btn:focus-visible { opacity: 1; }
 .task { background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .task.done { opacity: 0.7; }
 .task-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.task-head .flag-chip { margin-inline-start: 0; cursor: default; }
+.task-text { margin: 0; }
 .task-head .num { margin-inline-start: auto; }
 .task-head .date { color: var(--ink-2); }
 .task-comment { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }

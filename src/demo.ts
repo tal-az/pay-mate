@@ -1,9 +1,9 @@
 import { buildInsights, monthOf, recurringTimeline } from '../shared/core/insights';
 import { CATEGORY_SEEDS, makeCategory } from '../shared/core/categorize';
 import { emptyData, makeBackup } from '../shared/backup';
-import { MAX_FLAG_COMMENT } from '../shared/api';
+import { MAX_FLAG_COMMENT, insightFlagKey } from '../shared/api';
 import type {
-  Budget, Category, FlaggedTx, ImportResult, MonthSummary, PayMateApi, TxRow,
+  Budget, Category, FlaggedTx, ImportResult, InsightFlag, MonthSummary, PayMateApi, TxRow,
 } from '../shared/api';
 
 /** Synthetic data so the interface can be developed and previewed in a plain browser (open the site with ?demo). */
@@ -59,6 +59,7 @@ const allData: TxRow[] = [
 const data = allData.filter((t) => !(t.merchant === 'APPLE.COM/BILL' && t.chargeDate?.startsWith('2026-09')));
 
 const reviewed = new Set<string>();
+const insightFlags = new Map<string, InsightFlag>();
 const flagMeta = new Map<string, { createdAt: string; resolvedAt: string | null }>();
 
 const budgets: Budget[] = [{ categoryKey: 'groceries', monthlyAmount: 700 }, { categoryKey: 'restaurants', monthlyAmount: 300 }];
@@ -161,6 +162,19 @@ export const demoApi: PayMateApi = {
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
+  async setInsightFlag(month, insight, comment) {
+    const key = insightFlagKey(month, insight.id);
+    const existing = insightFlags.get(key);
+    insightFlags.set(key, existing
+      ? { ...existing, comment: comment.trim() }
+      : { key, month, insightKind: insight.kind, text: insight.text, comment: comment.trim(), resolved: false, createdAt: new Date().toISOString(), resolvedAt: null });
+  },
+  async resolveInsightFlag(key, resolved) {
+    const f = insightFlags.get(key);
+    if (f) insightFlags.set(key, { ...f, resolved, resolvedAt: resolved ? new Date().toISOString() : null });
+  },
+  async clearInsightFlag(key) { insightFlags.delete(key); },
+  async insightFlags() { return [...insightFlags.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); },
   async insights(month) {
     await sleep();
     return buildInsights({

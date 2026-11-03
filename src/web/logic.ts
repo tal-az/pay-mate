@@ -1,9 +1,9 @@
 import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
 import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
 import type { BackupData, BackupRule, BackupTransaction } from '../../shared/backup';
-import { FLAG_KINDS, MAX_FLAG_COMMENT } from '../../shared/api';
+import { FLAG_KINDS, MAX_FLAG_COMMENT, insightFlagKey } from '../../shared/api';
 import type {
-  FlagKind, FlaggedTx, TxFlag,
+  FlagKind, FlaggedTx, InsightFlag, TxFlag,
   Budget, Category, CategoryTotal, Insight, LastUpdate, MerchantTotal, MonthSummary, MonthTotal, TimelineRow, TxRow, UnknownMerchant,
 } from '../../shared/api';
 import type { ParsedStatement, Source } from '../../shared/types';
@@ -131,6 +131,35 @@ export function resolveFlag(data: BackupData, txId: string, resolved: boolean) {
 
 export function clearFlag(data: BackupData, txId: string) {
   data.flags = data.flags.filter((f) => f.txId !== txId);
+}
+
+/** Adds an insight to the follow-up list, or edits its comment; an edited flag stays resolved or open as it was. */
+export function setInsightFlag(data: BackupData, month: string, insight: { id: string; kind: string; text: string }, comment: string) {
+  const note = comment.trim();
+  if (note.length > MAX_FLAG_COMMENT) throw new Error(`ההערה ארוכה מדי (עד ${MAX_FLAG_COMMENT} תווים)`);
+  const key = insightFlagKey(month, insight.id);
+  const existing = data.insightFlags.find((f) => f.key === key);
+  if (existing) existing.comment = note;
+  else {
+    data.insightFlags.push({
+      key, month, insightKind: insight.kind, text: insight.text, comment: note, resolved: false, createdAt: new Date().toISOString(), resolvedAt: null,
+    });
+  }
+}
+
+export function resolveInsightFlag(data: BackupData, key: string, resolved: boolean) {
+  const f = data.insightFlags.find((x) => x.key === key);
+  if (!f) return;
+  f.resolved = resolved;
+  f.resolvedAt = resolved ? new Date().toISOString() : null;
+}
+
+export function clearInsightFlag(data: BackupData, key: string) {
+  data.insightFlags = data.insightFlags.filter((f) => f.key !== key);
+}
+
+export function listInsightFlags(data: BackupData): InsightFlag[] {
+  return data.insightFlags.map((f) => ({ ...f })).sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.key < b.key ? -1 : 1));
 }
 
 export function setBudget(data: BackupData, categoryKey: string, monthlyAmount: number | null) {

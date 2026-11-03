@@ -21,6 +21,23 @@ export interface TxFlag {
   resolvedAt: string | null;
 }
 
+/**
+ * A note the user attached to an insight. Insights are recomputed every time, so the flag keeps its own copy of the
+ * text it was made on; `key` is the month and the insight's id, which is how the insights page finds it again.
+ */
+export interface InsightFlag {
+  key: string;
+  month: string;
+  insightKind: string;
+  text: string;
+  comment: string;
+  resolved: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export const insightFlagKey = (month: string, insightId: string) => `${month}:${insightId}`;
+
 /** A flag together with the transaction it is about, for the tasks page. */
 export interface FlaggedTx extends TxFlag {
   merchant: string;
@@ -197,6 +214,11 @@ export interface PayMateApi {
   clearFlag(txId: string): Promise<void>;
   /** Every flag in all months, newest first. */
   flags(): Promise<FlaggedTx[]>;
+  /** Adds an insight to the follow-up list, or edits its comment (keeping whether it is resolved). */
+  setInsightFlag(month: string, insight: { id: string; kind: string; text: string }, comment: string): Promise<void>;
+  resolveInsightFlag(key: string, resolved: boolean): Promise<void>;
+  clearInsightFlag(key: string): Promise<void>;
+  insightFlags(): Promise<InsightFlag[]>;
   insights(month: string): Promise<Insight[]>;
   budgets(): Promise<Budget[]>;
   setBudget(categoryKey: string, monthlyAmount: number | null): Promise<void>;

@@ -59,6 +59,17 @@ CREATE TABLE IF NOT EXISTS tx_flags (
   resolved_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS insight_flags (
+  key TEXT PRIMARY KEY,
+  month TEXT NOT NULL,
+  insight_kind TEXT NOT NULL DEFAULT '',
+  text TEXT NOT NULL,
+  comment TEXT NOT NULL DEFAULT '',
+  resolved INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS merchant_reviews (
   merchant_key TEXT PRIMARY KEY,
   decided_at TEXT NOT NULL

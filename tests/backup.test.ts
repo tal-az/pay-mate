@@ -23,6 +23,7 @@ function populate(s: Store) {
   s.setFlag('a1', 'suspicious', 'לא זיהיתי את החיוב');
   s.setFlag('b1', 'mistake', '');
   s.resolveFlag('b1', true);
+  s.setInsightFlag('2026-10', { id: 'trend-total', kind: 'trend', text: 'ההוצאות עלו' }, 'להבין למה');
 }
 
 /** The two stores order rules, reviews and budgets differently; the content is what must match. */
@@ -35,6 +36,7 @@ function normalized(data: BackupData): BackupData {
     budgets: [...data.budgets].sort(by((b) => b.categoryKey)),
     imports: data.imports,
     flags: [...data.flags].sort(by((f) => f.txId)),
+    insightFlags: [...data.insightFlags].sort(by((f) => f.key)),
   };
 }
 
@@ -149,7 +151,9 @@ describe('parseBackup', () => {
   it('reads a backup made before flags existed', () => {
     const old = valid();
     delete old.flags;
+    delete old.insightFlags;
     expect(parse(old).flags).toEqual([]);
+    expect(parse(old).insightFlags).toEqual([]);
   });
 
   it('drops flags with no transaction or an unknown kind, and keeps the rest', () => {

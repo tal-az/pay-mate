@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
-import { FLAG_KINDS, MAX_FLAG_COMMENT, type Category, type FlagKind } from '../../shared/api';
+import { FLAG_KINDS, MAX_FLAG_COMMENT, insightFlagKey, type Category, type FlagKind } from '../../shared/api';
 import type { ParsedStatement } from '../../shared/types';
 
 export type Db = DatabaseSync;
@@ -111,6 +111,24 @@ export function resolveFlag(db: Db, txId: string, resolved: boolean) {
 
 export function clearFlag(db: Db, txId: string) {
   db.prepare('DELETE FROM tx_flags WHERE tx_id = ?').run(txId);
+}
+
+/** Adds an insight to the follow-up list, or edits its comment; an edited flag stays resolved or open as it was. */
+export function setInsightFlag(db: Db, month: string, insight: { id: string; kind: string; text: string }, comment: string) {
+  const note = comment.trim();
+  if (note.length > MAX_FLAG_COMMENT) throw new Error(`ההערה ארוכה מדי (עד ${MAX_FLAG_COMMENT} תווים)`);
+  db.prepare(
+    `INSERT INTO insight_flags (key, month, insight_kind, text, comment, created_at) VALUES (?,?,?,?,?,?)
+     ON CONFLICT(key) DO UPDATE SET comment = excluded.comment`,
+  ).run(insightFlagKey(month, insight.id), month, insight.kind, insight.text, note, new Date().toISOString());
+}
+
+export function resolveInsightFlag(db: Db, key: string, resolved: boolean) {
+  db.prepare('UPDATE insight_flags SET resolved = ?, resolved_at = ? WHERE key = ?').run(resolved ? 1 : 0, resolved ? new Date().toISOString() : null, key);
+}
+
+export function clearInsightFlag(db: Db, key: string) {
+  db.prepare('DELETE FROM insight_flags WHERE key = ?').run(key);
 }
 
 /** Maps every charge from this business, in all months, to a category, and remembers it for future imports. Returns how many charges changed. */

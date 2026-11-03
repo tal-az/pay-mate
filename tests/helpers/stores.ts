@@ -1,14 +1,15 @@
 import { join } from 'node:path';
 import {
   openDb, addCategory, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, setFlag, resolveFlag, clearFlag,
+  setInsightFlag, resolveInsightFlag, clearInsightFlag,
 } from '../../electron/db/db';
 import {
-  allTransactions, lastUpdate, listCategories, listBudgets, listFlags, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
+  allTransactions, lastUpdate, listCategories, listBudgets, listFlags, listInsightFlags, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
 } from '../../electron/db/queries';
 import { exportData, restoreData } from '../../electron/db/backup';
 import * as web from '../../src/web/logic';
 import { emptyData, type BackupData } from '../../shared/backup';
-import type { Budget, Category, FlagKind, FlaggedTx, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
+import type { Budget, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
 import type { ParsedStatement, ParsedTransaction, Source } from '../../shared/types';
 
 /** The same operations on both implementations: the desktop's SQLite and the website's plain document. */
@@ -32,6 +33,10 @@ export interface Store {
   resolveFlag(txId: string, resolved: boolean): void;
   clearFlag(txId: string): void;
   flags(): FlaggedTx[];
+  setInsightFlag(month: string, insight: { id: string; kind: string; text: string }, comment: string): void;
+  resolveInsightFlag(key: string, resolved: boolean): void;
+  clearInsightFlag(key: string): void;
+  insightFlags(): InsightFlag[];
   exportData(): BackupData;
   restoreData(data: BackupData): void;
 }
@@ -58,6 +63,10 @@ export function sqliteStore(): Store {
     resolveFlag: (id, r) => resolveFlag(db, id, r),
     clearFlag: (id) => clearFlag(db, id),
     flags: () => listFlags(db),
+    setInsightFlag: (m, i, c) => setInsightFlag(db, m, i, c),
+    resolveInsightFlag: (k, r) => resolveInsightFlag(db, k, r),
+    clearInsightFlag: (k) => clearInsightFlag(db, k),
+    insightFlags: () => listInsightFlags(db),
     exportData: () => exportData(db),
     restoreData: (d) => restoreData(db, d),
   };
@@ -85,6 +94,10 @@ export function webStore(): Store {
     resolveFlag: (id, r) => web.resolveFlag(data, id, r),
     clearFlag: (id) => web.clearFlag(data, id),
     flags: () => web.listFlags(data),
+    setInsightFlag: (m, i, c) => web.setInsightFlag(data, m, i, c),
+    resolveInsightFlag: (k, r) => web.resolveInsightFlag(data, k, r),
+    clearInsightFlag: (k) => web.clearInsightFlag(data, k),
+    insightFlags: () => web.listInsightFlags(data),
     exportData: () => structuredClone(data),
     restoreData: (d) => { data = structuredClone(d); },
   };

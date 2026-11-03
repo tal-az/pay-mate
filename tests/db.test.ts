@@ -93,6 +93,42 @@ describe.each(stores)('%s store', (_name, open) => {
     });
   });
 
+  describe('insight flags', () => {
+    const insight = { id: 'unusual-a', kind: 'unusual', text: 'חיוב חריג אצל XYZ' };
+
+    it('adds an insight to the list with its own copy of the text, and edits only the comment', () => {
+      const s = open();
+      s.setInsightFlag('2026-10', insight, ' לבדוק ');
+      s.resolveInsightFlag('2026-10:unusual-a', true);
+      s.setInsightFlag('2026-10', { ...insight, text: 'changed' }, 'עודכן');
+      expect(s.insightFlags()).toMatchObject([
+        { key: '2026-10:unusual-a', month: '2026-10', insightKind: 'unusual', text: insight.text, comment: 'עודכן', resolved: true },
+      ]);
+    });
+
+    it('resolves, reopens and clears', () => {
+      const s = open();
+      s.setInsightFlag('2026-10', insight, '');
+      s.resolveInsightFlag('2026-10:unusual-a', true);
+      expect(s.insightFlags()[0].resolvedAt).not.toBeNull();
+      s.resolveInsightFlag('2026-10:unusual-a', false);
+      expect(s.insightFlags()[0]).toMatchObject({ resolved: false, resolvedAt: null });
+      s.clearInsightFlag('2026-10:unusual-a');
+      expect(s.insightFlags()).toEqual([]);
+    });
+
+    it('keeps the same insight in another month separate', () => {
+      const s = open();
+      s.setInsightFlag('2026-09', insight, '');
+      s.setInsightFlag('2026-10', insight, '');
+      expect(s.insightFlags()).toHaveLength(2);
+    });
+
+    it('rejects a comment that is too long', () => {
+      expect(() => open().setInsightFlag('2026-10', insight, 'x'.repeat(501))).toThrow(/ארוכה/);
+    });
+  });
+
   describe('lastUpdate', () => {
     it('is null before any import and then reports the latest one', () => {
       const s = open();
