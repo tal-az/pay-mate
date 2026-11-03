@@ -25,6 +25,10 @@ const NAV: Array<{ id: PageId; label: string }> = [
   { id: 'settings', label: 'ייבוא והגדרות' },
 ];
 
+// The installer keeps a fixed file name (see build.nsis.artifactName), so this always serves the newest release.
+const DESKTOP_DOWNLOAD_URL = 'https://github.com/tal-az/pay-mate/releases/latest/download/PayMate-Setup.exe';
+const isWindows = /Windows/i.test(navigator.userAgent);
+
 export interface Shared {
   months: string[];
   month: string | null;
@@ -125,6 +129,12 @@ export function App() {
             {n.id === 'tasks' && taskCount > 0 && <span className="badge" aria-label={`${taskCount} פריטים לטיפול`}>{taskCount}</span>}
           </button>
         ))}
+        {!isDesktop && !isDemo && isWindows && (
+          <a className="get-desktop" href={DESKTOP_DOWNLOAD_URL} download title="גרסה למחשב שמושכת עסקאות ישירות משירות האשראי, בלי לשמור סיסמאות">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 2v7m0 0L5 6m3 3 3-3M3 13h10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span>גרסה למחשב: משיכה אוטומטית מהאשראי, בלי לשמור סיסמה</span>
+          </a>
+        )}
         <p className="privacy">
           {isDemo ? 'תצוגת דוגמה עם נתונים מומצאים. ' : ''}
           {isDesktop ? 'הנתונים נשארים במחשב הזה. סיסמאות לא נשמרות.' : 'הנתונים נשמרים בדפדפן הזה בלבד ולא נשלחים לשום שרת.'}

@@ -1,7 +1,7 @@
 {
   "name": "pay-mate",
   "productName": "PayMate",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "PayMate - card spending insights",
   "main": "dist-electron/electron/main.js",
@@ -62,6 +62,7 @@
       ]
     },
     "nsis": {
+      "artifactName": "PayMate-Setup.exe",
       "oneClick": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false
