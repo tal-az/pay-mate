@@ -68,7 +68,7 @@ Git-connected build: set the build command to `npm ci && npm run build:web` and 
 One JSON file (`paymate-backup`, version 1) is understood by both targets, so data moves freely in either direction: back up in the desktop app and restore on the website, or the other way round. The format is in `shared/backup.ts`, which is also the single place that validates a file before anything is changed.
 
 - Restoring **replaces** everything; it does not merge. A file that is not a valid backup changes nothing.
-- It stores category keys, not database ids, and every field both sides need: hand-set categories, the businesses you mapped, ones you chose to leave as "other", budgets and the import history.
+- It stores category keys, not database ids, and every field both sides need: hand-set categories, the businesses you mapped, ones you chose to leave as "other", budgets, the monthly target and the import history.
 - **New backups are always encrypted with a password** the user chooses (at least 8 characters). The password is never stored and cannot be recovered. Only the password is needed to restore: the key is derived from it again, using the salt kept in the file. The format (`paymate-backup-encrypted`, version 1) is in `shared/backupCrypto.ts`: PBKDF2-HMAC-SHA-256 (600,000 iterations, random salt) derives an AES-256-GCM key, with a random IV per file. GCM authenticates the data, so a wrong password and a tampered file are both refused. Encryption runs in the interface, so the password never reaches the desktop app's main process.
 - Old unencrypted backups can still be restored.
 - A backup from a newer PayMate is refused with a message. A category an older version does not know becomes "other".

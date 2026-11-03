@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('paymate', {
   insights: (month: string, card?: string) => call('insights', month, card),
   budgets: () => call('budgets'),
   setBudget: (key: string, amount: number | null) => call('setBudget', key, amount),
+  monthlyTarget: () => call('monthlyTarget'),
+  setMonthlyTarget: (amount: number | null) => call('setMonthlyTarget', amount),
   importFiles: (files: unknown) => call('importFiles', files),
   exportBackup: () => call('exportBackup'),
   restoreBackup: (text: string) => call('restoreBackup', text),

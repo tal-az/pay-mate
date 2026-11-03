@@ -169,6 +169,10 @@ export function setBudget(data: BackupData, categoryKey: string, monthlyAmount: 
   if (monthlyAmount != null && monthlyAmount > 0) data.budgets.push({ categoryKey, monthlyAmount });
 }
 
+export function setMonthlyTarget(data: BackupData, amount: number | null) {
+  data.monthlyTarget = amount != null && amount > 0 ? amount : null;
+}
+
 // ---- Queries ----
 
 function toTx(t: BackupTransaction, flags: Map<string, TxFlag>): TxRow {
@@ -302,4 +306,8 @@ export function monthInsights(data: BackupData, month: string, card?: string): I
 
 export function listBudgets(data: BackupData): Budget[] {
   return data.budgets.map((b) => ({ categoryKey: b.categoryKey, monthlyAmount: b.monthlyAmount }));
+}
+
+export function getMonthlyTarget(data: BackupData): number | null {
+  return data.monthlyTarget;
 }

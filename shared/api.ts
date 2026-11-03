@@ -246,6 +246,9 @@ export interface PayMateApi {
   insights(month: string, card?: string): Promise<Insight[]>;
   budgets(): Promise<Budget[]>;
   setBudget(categoryKey: string, monthlyAmount: number | null): Promise<void>;
+  /** The overall spending target for a month, or null when none is set. */
+  monthlyTarget(): Promise<number | null>;
+  setMonthlyTarget(amount: number | null): Promise<void>;
   importFiles(files: ImportInput[]): Promise<ImportResult[]>;
   /** The whole data set as the text of a backup file. */
   exportBackup(): Promise<string>;

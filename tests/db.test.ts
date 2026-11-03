@@ -154,6 +154,19 @@ describe.each(stores)('%s store', (_name, open) => {
       s.setBudget('groceries', null);
       expect(s.budgets()).toEqual([{ categoryKey: 'health', monthlyAmount: 100 }]);
     });
+
+    it('sets, replaces and clears the monthly target', () => {
+      const s = open();
+      expect(s.monthlyTarget()).toBeNull();
+      s.setMonthlyTarget(5000);
+      s.setMonthlyTarget(6000);
+      expect(s.monthlyTarget()).toBe(6000);
+      s.setMonthlyTarget(0);
+      expect(s.monthlyTarget()).toBeNull();
+      s.setMonthlyTarget(6000);
+      s.setMonthlyTarget(null);
+      expect(s.monthlyTarget()).toBeNull();
+    });
   });
 
   describe('monthSummary', () => {

@@ -227,7 +227,17 @@ table.tx td.date { color: var(--ink-2); white-space: nowrap; }
 .budget-row { display: grid; grid-template-columns: 14px 170px 1fr 120px 130px; gap: 14px; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--line); }
 .budget-row .status { font-size: 14px; color: var(--ink-2); }
 .budget-row .status.warn { color: var(--tomato); font-weight: 600; }
-input.money { width: 120px; text-align: left; }
+input.money { width: 100%; min-width: 0; text-align: left; }
+.budget-target { display: grid; gap: 12px; padding: 16px 18px; margin-bottom: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+.budget-target-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.budget-target label { font-weight: 600; }
+.budget-target input.money { width: 160px; }
+.budget-target .meter { height: 14px; border-radius: 7px; }
+.budget-target .meter i { border-radius: 7px; background: var(--ink-2); }
+.budget-target .meter.over i { background: var(--tomato); }
+.budget-target .meter b { box-shadow: 0 0 0 2px var(--paper); }
+.budget-target-note { font-size: 15px; }
+.budget-target-note.over { color: var(--tomato); font-weight: 600; }
 
 /* Banners */
 .banner {
@@ -296,6 +306,7 @@ input.money { width: 120px; text-align: left; }
   .price-tag { font-size: 44px; padding: 6px 20px 10px 30px; }
   .total-row { gap: 12px; margin-bottom: 24px; }
   .budget-row { grid-template-columns: 14px 1fr; row-gap: 8px; }
+  .budget-row > :nth-child(n+3) { grid-column: 1 / -1; }
   .drop { padding: 28px 16px; }
   .nudge { left: 16px; bottom: 16px; max-width: calc(100vw - 32px); }
   table.tx { display: block; overflow-x: auto; }

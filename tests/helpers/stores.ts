@@ -4,7 +4,7 @@ import {
   setInsightFlag, resolveInsightFlag, clearInsightFlag,
 } from '../../electron/db/db';
 import {
-  allTransactions, lastUpdate, listCards, listCategories, listBudgets, listFlags, listInsightFlags, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
+  allTransactions, getMonthlyTarget, lastUpdate, listCards, listCategories, listBudgets, listFlags, listInsightFlags, listMonths, monthSummary, monthTransactions, setBudget, setMonthlyTarget, unknownMerchants,
 } from '../../electron/db/queries';
 import { exportData, restoreData } from '../../electron/db/backup';
 import * as web from '../../src/web/logic';
@@ -20,6 +20,8 @@ export interface Store {
   keepMerchantAsOther(merchant: string): void;
   undoMerchant(merchant: string): void;
   setBudget(key: string, amount: number | null): void;
+  setMonthlyTarget(amount: number | null): void;
+  monthlyTarget(): number | null;
   addCategory(name: string, color: string): Category;
   categories(): Category[];
   unknownMerchants(month: string): UnknownMerchant[];
@@ -51,6 +53,8 @@ export function sqliteStore(): Store {
     keepMerchantAsOther: (m) => keepMerchantAsOther(db, m),
     undoMerchant: (m) => undoMerchant(db, m),
     setBudget: (k, a) => setBudget(db, k, a),
+    setMonthlyTarget: (a) => setMonthlyTarget(db, a),
+    monthlyTarget: () => getMonthlyTarget(db),
     addCategory: (n, c) => addCategory(db, n, c),
     categories: () => listCategories(db),
     unknownMerchants: (m) => unknownMerchants(db, m),
@@ -83,6 +87,8 @@ export function webStore(): Store {
     keepMerchantAsOther: (m) => web.keepMerchantAsOther(data, m),
     undoMerchant: (m) => web.undoMerchant(data, m),
     setBudget: (k, a) => web.setBudget(data, k, a),
+    setMonthlyTarget: (a) => web.setMonthlyTarget(data, a),
+    monthlyTarget: () => web.getMonthlyTarget(data),
     addCategory: (n, c) => web.addCategory(data, n, c),
     categories: () => web.categoriesOf(data),
     unknownMerchants: (m) => web.unknownMerchants(data, m),

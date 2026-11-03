@@ -7,7 +7,7 @@ import {
   setInsightFlag, resolveInsightFlag, clearInsightFlag, type Db,
 } from './db/db';
 import {
-  listMonths, listCards, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, listFlags, listInsightFlags,
+  listMonths, listCards, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, getMonthlyTarget, setMonthlyTarget, listFlags, listInsightFlags,
 } from './db/queries';
 import { parseIsracardBuffer } from '../shared/import/isracard';
 import { exportBackup, restoreData } from './db/backup';
@@ -170,6 +170,8 @@ function registerIpc() {
   ipcMain.handle('insightFlags', () => listInsightFlags(db));
   ipcMain.handle('budgets', () => listBudgets(db));
   ipcMain.handle('setBudget', (_e, key: string, amount: number | null) => setBudget(db, key, amount));
+  ipcMain.handle('monthlyTarget', () => getMonthlyTarget(db));
+  ipcMain.handle('setMonthlyTarget', (_e, amount: number | null) => setMonthlyTarget(db, amount));
   ipcMain.handle('sync', (e, request: SyncRequest) =>
     runSync(request, (m) => e.sender.send('syncProgress', m)),
   );

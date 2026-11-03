@@ -20,6 +20,7 @@ function populate(s: Store) {
   s.setCategory('k1', 'entertainment', false);
   s.setBudget('groceries', 700);
   s.setBudget('health', 120.5);
+  s.setMonthlyTarget(5000);
   s.setFlag('a1', 'suspicious', 'לא זיהיתי את החיוב');
   s.setFlag('b1', 'mistake', '');
   s.resolveFlag('b1', true);
@@ -34,6 +35,7 @@ function normalized(data: BackupData): BackupData {
     rules: [...data.rules].sort(by((r) => r.pattern)),
     reviews: [...data.reviews].sort(by((r) => r.merchantKey)),
     budgets: [...data.budgets].sort(by((b) => b.categoryKey)),
+    monthlyTarget: data.monthlyTarget,
     imports: data.imports,
     flags: [...data.flags].sort(by((f) => f.txId)),
     insightFlags: [...data.insightFlags].sort(by((f) => f.key)),
@@ -62,6 +64,7 @@ describe('backup compatibility between the desktop app and the website', () => {
       expect(to.unknownMerchants(month)).toEqual(from.unknownMerchants(month));
     }
     expect(to.budgets().length).toBe(2);
+    expect(to.monthlyTarget()).toBe(5000);
     expect(to.lastUpdate()).toEqual(from.lastUpdate());
   });
 
@@ -146,6 +149,13 @@ describe('parseBackup', () => {
     const data = parse(b);
     expect(data.transactions).toHaveLength(6);
     expect(data.budgets.some((x) => x.categoryKey === 'bills')).toBe(false);
+  });
+
+  it('reads a backup without a monthly target, and ignores an invalid one', () => {
+    const { monthlyTarget: _dropped, ...old } = valid();
+    expect(parse(old).monthlyTarget).toBeNull();
+    expect(parse({ ...valid(), monthlyTarget: 0 }).monthlyTarget).toBeNull();
+    expect(parse({ ...valid(), monthlyTarget: '5000' }).monthlyTarget).toBeNull();
   });
 
   it('reads a backup made before flags existed', () => {

@@ -1,7 +1,7 @@
 import type { Db } from './db';
 import { SEED_KEYS } from '../../shared/core/categorize';
 import type { FlagKind, TxFlag } from '../../shared/api';
-import { listInsightFlags } from './queries';
+import { getMonthlyTarget, listInsightFlags } from './queries';
 import {
   makeBackup, type Backup, type BackupBudget, type BackupCategory, type BackupData, type BackupImport, type BackupReview, type BackupRule, type BackupTransaction,
 } from '../../shared/backup';
@@ -61,7 +61,7 @@ export function exportData(db: Db): BackupData {
     .prepare('SELECT tx_id, kind, comment, resolved, created_at, resolved_at FROM tx_flags ORDER BY created_at, tx_id')
     .all() as unknown as Array<{ tx_id: string; kind: FlagKind; comment: string; resolved: number; created_at: string; resolved_at: string | null }>)
     .map((r): TxFlag => ({ txId: r.tx_id, kind: r.kind, comment: r.comment, resolved: r.resolved === 1, createdAt: r.created_at, resolvedAt: r.resolved_at }));
-  return { categories, transactions, rules, reviews, budgets, imports, flags, insightFlags: listInsightFlags(db) };
+  return { categories, transactions, rules, reviews, budgets, monthlyTarget: getMonthlyTarget(db), imports, flags, insightFlags: listInsightFlags(db) };
 }
 
 export function exportBackup(db: Db): Backup {
@@ -72,7 +72,7 @@ export function exportBackup(db: Db): Backup {
 export function restoreData(db: Db, data: BackupData) {
   db.exec('BEGIN');
   try {
-    for (const table of ['transactions', 'merchant_rules', 'merchant_reviews', 'budgets', 'imports', 'insight_flags']) db.exec(`DELETE FROM ${table}`);
+    for (const table of ['transactions', 'merchant_rules', 'merchant_reviews', 'budgets', 'monthly_target', 'imports', 'insight_flags']) db.exec(`DELETE FROM ${table}`);
     // The backup's own categories replace the current ones; the built-in ones stay.
     const stale = (db.prepare('SELECT key FROM categories').all() as Array<{ key: string }>).filter((c) => !SEED_KEYS.has(c.key));
     for (const c of stale) db.prepare('DELETE FROM categories WHERE key = ?').run(c.key);
@@ -100,6 +100,7 @@ export function restoreData(db: Db, data: BackupData) {
     for (const r of data.reviews) insertReview.run(r.merchantKey, r.decidedAt);
     const insertBudget = db.prepare('INSERT INTO budgets (category_id, monthly_amount) VALUES (?,?)');
     for (const b of data.budgets) insertBudget.run(idOf(b.categoryKey), b.monthlyAmount);
+    if (data.monthlyTarget) db.prepare('INSERT INTO monthly_target (id, amount) VALUES (1, ?)').run(data.monthlyTarget);
     const insertImport = db.prepare('INSERT INTO imports (at, company, source, label, added, skipped) VALUES (?,?,?,?,?,?)');
     for (const i of data.imports) insertImport.run(i.at, i.company ?? null, i.source, i.label, i.added, i.skipped);
     const insertFlag = db.prepare('INSERT INTO tx_flags (tx_id, kind, comment, resolved, created_at, resolved_at) VALUES (?,?,?,?,?,?)');
