@@ -12,7 +12,9 @@
     "test": "vitest run",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder --publish never",
-    "release": "npm run build && electron-builder --publish always"
+    "release": "npm run build && electron-builder --publish always",
+    "build:web": "tsc --noEmit && vite build --mode web",
+    "preview:web": "vite preview --mode web --outDir dist-web --port 4173"
   },
   "dependencies": {
     "@fontsource-variable/heebo": "^5.3.0",
@@ -31,9 +33,11 @@
     "@vitejs/plugin-react": "^6.2.1",
     "electron": "^45.2.1",
     "electron-builder": "^26.18.0",
+    "fake-indexeddb": "^6.2.7",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.156.2"
   },
   "author": "tal-az",
   "build": {

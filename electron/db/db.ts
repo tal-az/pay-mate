@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CATEGORY_SEEDS, categorize, type UserRule } from '../core/categorize';
+import { CATEGORY_SEEDS, categorize, type UserRule } from '../../shared/core/categorize';
 import type { ParsedStatement } from '../../shared/types';
 
 export type Db = DatabaseSync;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import ExcelJS from 'exceljs';
-import { parseIsracardFile, parseIsracardWorkbook } from '../electron/sources/excel/isracard';
+import { parseIsracardBuffer, parseIsracardWorkbook } from '../shared/import/isracard';
 
 /** Builds a synthetic workbook that mimics the layout of a real Isracard export. */
 function buildWorkbook(): ExcelJS.Workbook {
@@ -82,7 +82,7 @@ describe('parseIsracardWorkbook', () => {
 const realFile = process.env.PAYMATE_REAL_XLSX;
 describe.skipIf(!realFile || !existsSync(realFile))('real Isracard export', () => {
   it('imports and matches the stated total', async () => {
-    const stmt = await parseIsracardFile(realFile!);
+    const stmt = await parseIsracardBuffer(readFileSync(realFile!));
     const sum = stmt.transactions.reduce((s, t) => s + t.chargedAmount, 0);
     expect(stmt.transactions.length).toBeGreaterThan(0);
     expect(sum).toBeCloseTo(stmt.statedTotal!, 1);

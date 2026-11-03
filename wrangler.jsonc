@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "paymate",
+  "compatibility_date": "2026-11-01",
+  // The website is only static files: npm run build:web writes them to dist-web.
+  "assets": {
+    "directory": "./dist-web"
+  }
+}

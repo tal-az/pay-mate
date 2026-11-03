@@ -1,14 +1,16 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, utilityProcess } from 'electron';
 import { autoUpdater } from 'electron-updater';
-import { join, basename } from 'node:path';
+import { join } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
 import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant, type Db } from './db/db';
 import {
   listMonths, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget,
 } from './db/queries';
-import { parseIsracardFile } from './sources/excel/isracard';
+import { parseIsracardBuffer } from '../shared/import/isracard';
+import { exportBackup, restoreData } from './db/backup';
+import { BackupError, parseBackup } from '../shared/backup';
 import { mapAccounts, failureFromErrorType, failureMessage, type ScrapedAccount } from './sources/sync/map';
-import type { ImportResult, SyncRequest, SyncResult, SyncFailure } from '../shared/api';
+import type { ImportInput, ImportResult, RestoreResult, SyncRequest, SyncResult, SyncFailure } from '../shared/api';
 import { findProvider, type ProviderKey } from '../shared/providers';
 
 let db: Db;
@@ -38,11 +40,10 @@ function createWindow() {
   void win.loadFile(join(__dirname, '../../dist/index.html'));
 }
 
-async function importOne(path: string): Promise<ImportResult> {
-  const file = basename(path);
+async function importOne({ name: file, data }: ImportInput): Promise<ImportResult> {
   try {
-    if (!/\.xlsx$/i.test(path)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט');
-    const stmt = await parseIsracardFile(path);
+    if (!/\.xlsx$/i.test(file)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט');
+    const stmt = await parseIsracardBuffer(data);
     const { added, skipped } = importStatement(db, stmt, file, 'excel');
     const sum = stmt.transactions.reduce((s, t) => s + t.chargedAmount, 0);
     return {
@@ -158,18 +159,20 @@ function registerIpc() {
   ipcMain.handle('sync', (e, request: SyncRequest) =>
     runSync(request, (m) => e.sender.send('syncProgress', m)),
   );
-  ipcMain.handle('pickFiles', async () => {
-    const res = await dialog.showOpenDialog({
-      title: 'בחירת קובצי ישראכארט',
-      properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Excel', extensions: ['xlsx'] }],
-    });
-    return res.canceled ? [] : res.filePaths;
-  });
-  ipcMain.handle('importFiles', async (_e, paths: string[]) => {
+  ipcMain.handle('importFiles', async (_e, files: ImportInput[]) => {
     const results: ImportResult[] = [];
-    for (const p of paths) results.push(await importOne(p));
+    for (const f of files) results.push(await importOne(f));
     return results;
+  });
+  ipcMain.handle('exportBackup', () => JSON.stringify(exportBackup(db)));
+  ipcMain.handle('restoreBackup', (_e, text: string): RestoreResult => {
+    try {
+      const data = parseBackup(text);
+      restoreData(db, data);
+      return { ok: true, transactions: data.transactions.length };
+    } catch (e) {
+      return { ok: false, error: e instanceof BackupError ? e.message : 'השחזור נכשל, והנתונים לא השתנו' };
+    }
   });
 }
 

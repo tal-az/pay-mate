@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, isDesktop } from '../api';
 import { ils, ilsExact, monthLabel } from '../format';
 import { Donut } from '../charts/Donut';
 import { MonthBars } from '../charts/MonthBars';
@@ -23,9 +23,9 @@ export function Dashboard({ month, months, go, selectMonth }: Shared) {
     return (
       <div className="empty">
         <h2>עוד אין כאן נתונים</h2>
-        <p>סנכרנו את כרטיס האשראי, או ייבאו קובץ של ישראכארט, כדי לראות לאן הלך הכסף.</p>
+        <p>{isDesktop ? 'סנכרנו את כרטיס האשראי, או ייבאו קובץ של ישראכארט, כדי לראות לאן הלך הכסף.' : 'ייבאו את פירוט העסקאות החודשי מאתר ישראכארט כדי לראות לאן הלך הכסף.'}</p>
         <p style={{ marginTop: 20 }}>
-          <button className="btn primary" onClick={() => go('settings')}>סנכרון או ייבוא</button>
+          <button className="btn primary" onClick={() => go('settings')}>{isDesktop ? 'סנכרון או ייבוא' : 'ייבוא קובץ'}</button>
         </p>
       </div>
     );

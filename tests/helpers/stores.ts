@@ -1,0 +1,84 @@
+import { join } from 'node:path';
+import { openDb, importStatement, setCategory, assignMerchant, keepMerchantAsOther, undoMerchant } from '../../electron/db/db';
+import {
+  allTransactions, lastUpdate, listBudgets, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
+} from '../../electron/db/queries';
+import { exportData, restoreData } from '../../electron/db/backup';
+import * as web from '../../src/web/logic';
+import { emptyData, type BackupData } from '../../shared/backup';
+import type { Budget, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
+import type { ParsedStatement, ParsedTransaction, Source } from '../../shared/types';
+
+/** The same operations on both implementations: the desktop's SQLite and the website's plain document. */
+export interface Store {
+  importStatement(stmt: ParsedStatement, label: string, source: Source): { added: number; skipped: number };
+  setCategory(txId: string, key: string, all: boolean): void;
+  assignMerchant(merchant: string, key: string): number;
+  keepMerchantAsOther(merchant: string): void;
+  undoMerchant(merchant: string): void;
+  setBudget(key: string, amount: number | null): void;
+  unknownMerchants(month: string): UnknownMerchant[];
+  monthTransactions(month: string): TxRow[];
+  allTransactions(): TxRow[];
+  listMonths(): string[];
+  monthSummary(month: string): MonthSummary;
+  lastUpdate(): LastUpdate | null;
+  budgets(): Budget[];
+  exportData(): BackupData;
+  restoreData(data: BackupData): void;
+}
+
+export function sqliteStore(): Store {
+  const db = openDb(':memory:', join(__dirname, '../../electron/db'));
+  return {
+    importStatement: (s, l, src) => importStatement(db, s, l, src),
+    setCategory: (id, k, all) => setCategory(db, id, k, all),
+    assignMerchant: (m, k) => assignMerchant(db, m, k),
+    keepMerchantAsOther: (m) => keepMerchantAsOther(db, m),
+    undoMerchant: (m) => undoMerchant(db, m),
+    setBudget: (k, a) => setBudget(db, k, a),
+    unknownMerchants: (m) => unknownMerchants(db, m),
+    monthTransactions: (m) => monthTransactions(db, m),
+    allTransactions: () => allTransactions(db),
+    listMonths: () => listMonths(db),
+    monthSummary: (m) => monthSummary(db, m),
+    lastUpdate: () => lastUpdate(db),
+    budgets: () => listBudgets(db),
+    exportData: () => exportData(db),
+    restoreData: (d) => restoreData(db, d),
+  };
+}
+
+export function webStore(): Store {
+  let data = emptyData();
+  return {
+    importStatement: (s, l, src) => web.importStatement(data, s, l, src),
+    setCategory: (id, k, all) => web.setCategory(data, id, k, all),
+    assignMerchant: (m, k) => web.assignMerchant(data, m, k),
+    keepMerchantAsOther: (m) => web.keepMerchantAsOther(data, m),
+    undoMerchant: (m) => web.undoMerchant(data, m),
+    setBudget: (k, a) => web.setBudget(data, k, a),
+    unknownMerchants: (m) => web.unknownMerchants(data, m),
+    monthTransactions: (m) => web.monthTransactions(data, m),
+    allTransactions: () => web.allTransactions(data),
+    listMonths: () => web.listMonths(data),
+    monthSummary: (m) => web.monthSummary(data, m),
+    lastUpdate: () => web.lastUpdate(data),
+    budgets: () => web.listBudgets(data),
+    exportData: () => structuredClone(data),
+    restoreData: (d) => { data = structuredClone(d); },
+  };
+}
+
+export const stores: Array<[string, () => Store]> = [['sqlite', sqliteStore], ['web', webStore]];
+
+export const tx = (over: Partial<ParsedTransaction>): ParsedTransaction => ({
+  id: 'isracard:1234:1', company: 'isracard', cardLast4: '1234', purchaseDate: '2026-10-01', chargeDate: '2026-10-02',
+  rawMerchant: 'x', merchant: 'שופרסל דיל', originalAmount: 10, originalCurrency: 'ILS',
+  chargedAmount: 10, chargedCurrency: 'ILS', voucher: '1', standingOrder: false, foreignSite: false,
+  discount: 0, details: '', source: 'excel', ...over,
+});
+
+export const stmt = (transactions: ParsedTransaction[]): ParsedStatement => ({
+  company: 'isracard', cardName: 'x', cardLast4: '1234', month: '2026-10', chargeDate: null, statedTotal: null, transactions,
+});

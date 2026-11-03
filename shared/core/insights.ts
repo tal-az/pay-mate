@@ -1,4 +1,4 @@
-import type { Insight, TimelineRow, TxRow } from '../../shared/api';
+import type { Insight, TimelineRow, TxRow } from '../api';
 
 const MONTH_NAMES = [
   'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',

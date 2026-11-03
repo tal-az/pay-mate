@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, isDemo } from './api';
+import { api, isDemo, isDesktop } from './api';
 import { monthLabel } from './format';
 import { isStale, longDate } from './freshness';
 import type { Category, LastUpdate, UpdateStatus } from '../shared/api';
@@ -61,7 +61,18 @@ export function App() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => api.onUpdateStatus(setUpdate), []);
+
+  // A file dropped outside the drop zone would otherwise make the browser open it and leave the app.
+  useEffect(() => {
+    const stop = (e: DragEvent) => e.preventDefault();
+    window.addEventListener('dragover', stop);
+    window.addEventListener('drop', stop);
+    return () => {
+      window.removeEventListener('dragover', stop);
+      window.removeEventListener('drop', stop);
+    };
+  }, []);
+  useEffect(() => api.desktop?.onUpdateStatus(setUpdate), []);
 
   const refresh = useCallback(() => { setTick((t) => t + 1); void load(); }, [load]);
 
@@ -103,7 +114,7 @@ export function App() {
         ))}
         <p className="privacy">
           {isDemo ? 'תצוגת דוגמה עם נתונים מומצאים. ' : ''}
-          הנתונים נשארים במחשב הזה. סיסמאות לא נשמרות.
+          {isDesktop ? 'הנתונים נשארים במחשב הזה. סיסמאות לא נשמרות.' : 'הנתונים נשמרים בדפדפן הזה בלבד ולא נשלחים לשום שרת.'}
         </p>
       </nav>
       <main className="main">
@@ -111,7 +122,7 @@ export function App() {
           {update?.state === 'ready' && (
             <div className="banner stale" role="status">
               <span>יש גרסה חדשה של PayMate ({update.version}). הפעילו מחדש כדי להתקין אותה. הנתונים שלכם לא נמחקים.</span>
-              <button className="btn primary" onClick={() => void api.installUpdate()}>הפעלה מחדש ועדכון</button>
+              <button className="btn primary" onClick={() => void api.desktop?.installUpdate()}>הפעלה מחדש ועדכון</button>
             </div>
           )}
           {update?.state === 'downloading' && (
@@ -128,7 +139,7 @@ export function App() {
           {stale && lastUpdate && (
             <div className="banner stale" role="status">
               <span>
-                המידע מעודכן עד {longDate(lastUpdate.at)}. כדי לראות עסקאות חדשות, עדכנו אותו בסנכרון או בהעלאת קובצי Excel.
+                המידע מעודכן עד {longDate(lastUpdate.at)}. כדי לראות עסקאות חדשות, עדכנו אותו {isDesktop ? 'בסנכרון או ' : ''}בהעלאת קובצי Excel.
               </span>
               <button className="btn primary" onClick={() => go('settings')}>עדכון המידע</button>
               <button className="btn" onClick={() => setStaleDismissed(true)}>אחר כך</button>

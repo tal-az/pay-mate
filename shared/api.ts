@@ -128,6 +128,29 @@ export type UpdateStatus =
   | { state: 'downloading'; version: string }
   | { state: 'ready'; version: string };
 
+export interface RestoreResult {
+  ok: boolean;
+  /** A message for the user, in Hebrew, when ok is false. */
+  error?: string;
+  transactions?: number;
+}
+
+/** An Excel file chosen by the user, read in the renderer so both the desktop app and the website parse the same bytes. */
+export interface ImportInput {
+  name: string;
+  data: ArrayBuffer;
+}
+
+/** What only the installed desktop app can do. The website has none of it, so the interface hides these features. */
+export interface DesktopApi {
+  sync(request: SyncRequest): Promise<SyncResult>;
+  onSyncProgress(callback: (message: string) => void): () => void;
+  appVersion(): Promise<string>;
+  checkForUpdates(): Promise<void>;
+  installUpdate(): Promise<void>;
+  onUpdateStatus(callback: (status: UpdateStatus) => void): () => void;
+}
+
 export interface PayMateApi {
   months(): Promise<string[]>;
   lastUpdate(): Promise<LastUpdate | null>;
@@ -144,15 +167,12 @@ export interface PayMateApi {
   insights(month: string): Promise<Insight[]>;
   budgets(): Promise<Budget[]>;
   setBudget(categoryKey: string, monthlyAmount: number | null): Promise<void>;
-  pickFiles(): Promise<string[]>;
-  importFiles(paths: string[]): Promise<ImportResult[]>;
-  sync(request: SyncRequest): Promise<SyncResult>;
-  onSyncProgress(callback: (message: string) => void): () => void;
-  appVersion(): Promise<string>;
-  checkForUpdates(): Promise<void>;
-  installUpdate(): Promise<void>;
-  onUpdateStatus(callback: (status: UpdateStatus) => void): () => void;
-  pathForFile(file: File): string;
+  importFiles(files: ImportInput[]): Promise<ImportResult[]>;
+  /** The whole data set as the text of a backup file. */
+  exportBackup(): Promise<string>;
+  /** Replaces all data with a backup file's. When the file is not a valid backup nothing changes and the result says why. */
+  restoreBackup(text: string): Promise<RestoreResult>;
+  desktop?: DesktopApi;
 }
 
 declare global {

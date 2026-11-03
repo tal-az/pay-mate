@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import ExcelJS from 'exceljs';
 import { mapAccount, failureFromErrorType, failureMessage } from '../electron/sources/sync/map';
-import { parseIsracardWorkbook } from '../electron/sources/excel/isracard';
+import { parseIsracardWorkbook } from '../shared/import/isracard';
 import { openDb, importStatement } from '../electron/db/db';
 
 const account = {
