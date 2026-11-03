@@ -4,12 +4,12 @@ import {
   setInsightFlag, resolveInsightFlag, clearInsightFlag,
 } from '../../electron/db/db';
 import {
-  allTransactions, lastUpdate, listCategories, listBudgets, listFlags, listInsightFlags, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
+  allTransactions, lastUpdate, listCards, listCategories, listBudgets, listFlags, listInsightFlags, listMonths, monthSummary, monthTransactions, setBudget, unknownMerchants,
 } from '../../electron/db/queries';
 import { exportData, restoreData } from '../../electron/db/backup';
 import * as web from '../../src/web/logic';
 import { emptyData, type BackupData } from '../../shared/backup';
-import type { Budget, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
+import type { Budget, CardInfo, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthSummary, TxRow, UnknownMerchant } from '../../shared/api';
 import type { ParsedStatement, ParsedTransaction, Source } from '../../shared/types';
 
 /** The same operations on both implementations: the desktop's SQLite and the website's plain document. */
@@ -23,10 +23,11 @@ export interface Store {
   addCategory(name: string, color: string): Category;
   categories(): Category[];
   unknownMerchants(month: string): UnknownMerchant[];
-  monthTransactions(month: string): TxRow[];
+  monthTransactions(month: string, card?: string): TxRow[];
   allTransactions(): TxRow[];
   listMonths(): string[];
-  monthSummary(month: string): MonthSummary;
+  monthSummary(month: string, card?: string): MonthSummary;
+  cards(): CardInfo[];
   lastUpdate(): LastUpdate | null;
   budgets(): Budget[];
   setFlag(txId: string, kind: FlagKind, comment: string): void;
@@ -53,10 +54,11 @@ export function sqliteStore(): Store {
     addCategory: (n, c) => addCategory(db, n, c),
     categories: () => listCategories(db),
     unknownMerchants: (m) => unknownMerchants(db, m),
-    monthTransactions: (m) => monthTransactions(db, m),
+    monthTransactions: (m, c) => monthTransactions(db, m, c),
     allTransactions: () => allTransactions(db),
     listMonths: () => listMonths(db),
-    monthSummary: (m) => monthSummary(db, m),
+    monthSummary: (m, c) => monthSummary(db, m, c),
+    cards: () => listCards(db),
     lastUpdate: () => lastUpdate(db),
     budgets: () => listBudgets(db),
     setFlag: (id, k, c) => setFlag(db, id, k, c),
@@ -84,10 +86,11 @@ export function webStore(): Store {
     addCategory: (n, c) => web.addCategory(data, n, c),
     categories: () => web.categoriesOf(data),
     unknownMerchants: (m) => web.unknownMerchants(data, m),
-    monthTransactions: (m) => web.monthTransactions(data, m),
+    monthTransactions: (m, c) => web.monthTransactions(data, m, c),
     allTransactions: () => web.allTransactions(data),
     listMonths: () => web.listMonths(data),
-    monthSummary: (m) => web.monthSummary(data, m),
+    monthSummary: (m, c) => web.monthSummary(data, m, c),
+    cards: () => web.listCards(data),
     lastUpdate: () => web.lastUpdate(data),
     budgets: () => web.listBudgets(data),
     setFlag: (id, k, c) => web.setFlag(data, id, k, c),

@@ -1,7 +1,8 @@
 import type { Db } from './db';
-import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
+import { insightsFor, monthOf, recurringTimeline } from '../../shared/core/insights';
+import { listCards as cardsOf, totalsByCard } from '../../shared/core/cards';
 import type {
-  Budget, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
+  Budget, CardInfo, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
 } from '../../shared/api';
 
 interface Row {
@@ -16,6 +17,7 @@ interface Row {
   standing_order: number;
   foreign_site: number;
   discount: number;
+  company: string;
   card_last4: string;
   flag_kind: FlagKind | null;
   flag_resolved: number | null;
@@ -23,6 +25,7 @@ interface Row {
 }
 
 const MONTH_SQL = 'COALESCE(substr(t.charge_date, 1, 7), substr(t.purchase_date, 1, 7))';
+const CARD_SQL = "t.company || ':' || t.card_last4 = ?";
 
 function toTx(r: Row): TxRow {
   return {
@@ -37,13 +40,14 @@ function toTx(r: Row): TxRow {
     standingOrder: r.standing_order === 1,
     foreignSite: r.foreign_site === 1,
     discount: r.discount,
+    company: r.company,
     cardLast4: r.card_last4,
     ...(r.flag_kind ? { flag: { kind: r.flag_kind, resolved: r.flag_resolved === 1, comment: r.flag_comment ?? '' } } : {}),
   };
 }
 
 const SELECT_TX = `SELECT t.id, t.purchase_date, t.charge_date, t.merchant, c.key AS category_key, t.charged_amount,
-  t.original_amount, t.original_currency, t.standing_order, t.foreign_site, t.discount, t.card_last4,
+  t.original_amount, t.original_currency, t.standing_order, t.foreign_site, t.discount, t.company, t.card_last4,
   f.kind AS flag_kind, f.resolved AS flag_resolved, f.comment AS flag_comment
   FROM transactions t LEFT JOIN categories c ON c.id = t.category_id LEFT JOIN tx_flags f ON f.tx_id = t.id`;
 
@@ -74,20 +78,28 @@ export function listFlags(db: Db): FlaggedTx[] {
   }));
 }
 
-export function listMonths(db: Db): string[] {
-  const rows = db.prepare(`SELECT DISTINCT ${MONTH_SQL} AS m FROM transactions t ORDER BY m DESC`).all() as Array<{ m: string }>;
+export function listMonths(db: Db, card?: string): string[] {
+  const where = card ? `WHERE ${CARD_SQL}` : '';
+  const rows = db.prepare(`SELECT DISTINCT ${MONTH_SQL} AS m FROM transactions t ${where} ORDER BY m DESC`).all(...(card ? [card] : [])) as Array<{ m: string }>;
   return rows.map((r) => r.m);
 }
 
-export function monthTotals(db: Db): MonthTotal[] {
+export function listCards(db: Db): CardInfo[] {
+  const rows = db.prepare('SELECT DISTINCT company, card_last4 AS cardLast4 FROM transactions').all() as unknown as Array<{ company: string; cardLast4: string }>;
+  const imports = db.prepare('SELECT at, company FROM imports').all() as unknown as Array<{ at: string; company: string | null }>;
+  return cardsOf(rows, imports);
+}
+
+export function monthTotals(db: Db, card?: string): MonthTotal[] {
+  const where = card ? `WHERE ${CARD_SQL}` : '';
   const rows = db
-    .prepare(`SELECT ${MONTH_SQL} AS month, SUM(t.charged_amount) AS total FROM transactions t GROUP BY month ORDER BY month DESC LIMIT 12`)
-    .all() as unknown as MonthTotal[];
+    .prepare(`SELECT ${MONTH_SQL} AS month, SUM(t.charged_amount) AS total FROM transactions t ${where} GROUP BY month ORDER BY month DESC LIMIT 12`)
+    .all(...(card ? [card] : [])) as unknown as MonthTotal[];
   return rows.reverse();
 }
 
-export function recurringTimelineRows(db: Db): TimelineRow[] {
-  return recurringTimeline(allTransactions(db), 6);
+export function recurringTimelineRows(db: Db, card?: string): TimelineRow[] {
+  return recurringTimeline(allTransactions(db), 6, card);
 }
 
 /** Businesses in a month that landed in "other" automatically and that the user has not decided about yet. */
@@ -117,17 +129,18 @@ export function allTransactions(db: Db): TxRow[] {
   return (db.prepare(`${SELECT_TX} ORDER BY t.purchase_date DESC, t.id`).all() as unknown as Row[]).map(toTx);
 }
 
-export function monthTransactions(db: Db, month: string): TxRow[] {
-  return (db.prepare(`${SELECT_TX} WHERE ${MONTH_SQL} = ? ORDER BY t.purchase_date DESC, t.id`).all(month) as unknown as Row[]).map(toTx);
+export function monthTransactions(db: Db, month: string, card?: string): TxRow[] {
+  const sql = `${SELECT_TX} WHERE ${MONTH_SQL} = ? ${card ? `AND ${CARD_SQL}` : ''} ORDER BY t.purchase_date DESC, t.id`;
+  return (db.prepare(sql).all(month, ...(card ? [card] : [])) as unknown as Row[]).map(toTx);
 }
 
-export function monthSummary(db: Db, month: string): MonthSummary {
+export function monthSummary(db: Db, month: string, card?: string): MonthSummary {
   const cats = listCategories(db);
-  const rows = monthTransactions(db, month);
-  const months = listMonths(db);
+  const rows = monthTransactions(db, month, card);
+  const months = listMonths(db, card);
   const prevMonth = months.filter((m) => m < month)[0] ?? null;
   const prevTotal = prevMonth
-    ? monthTransactions(db, prevMonth).reduce((s, t) => s + t.chargedAmount, 0)
+    ? monthTransactions(db, prevMonth, card).reduce((s, t) => s + t.chargedAmount, 0)
     : null;
 
   const byCat = new Map<string, CategoryTotal>();
@@ -150,17 +163,17 @@ export function monthSummary(db: Db, month: string): MonthSummary {
     prevTotal,
     transactionCount: rows.length,
     cards: [...new Set(rows.map((t) => t.cardLast4))],
+    byCard: totalsByCard(rows),
     byCategory: [...byCat.values()].sort((a, b) => b.amount - a.amount),
     topMerchants: [...byMerchant.values()].sort((a, b) => b.amount - a.amount).slice(0, 5),
   };
 }
 
-export function monthInsights(db: Db, month: string): Insight[] {
+export function monthInsights(db: Db, month: string, card?: string): Insight[] {
   const cats = listCategories(db);
-  const months = listMonths(db);
-  return buildInsights({
+  return insightsFor({
     month,
-    prevMonth: months.filter((m) => m < month)[0] ?? null,
+    card,
     all: allTransactions(db),
     categoryNames: Object.fromEntries(cats.map((c) => [c.key, c.name])),
   });

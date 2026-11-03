@@ -18,7 +18,7 @@ const KIND: Record<Insight['kind'], string> = {
   commitments: 'חיובים קבועים',
 };
 
-export function Insights({ month, go, refresh }: Shared) {
+export function Insights({ month, cards, card, go, refresh }: Shared) {
   const [items, setItems] = useState<Insight[] | null>(null);
   const [timeline, setTimeline] = useState<TimelineRow[]>([]);
   const [flags, setFlags] = useState<Map<string, InsightFlag>>(new Map());
@@ -27,10 +27,10 @@ export function Insights({ month, go, refresh }: Shared) {
   const loadFlags = useCallback(async () => setFlags(new Map((await api.insightFlags()).map((f) => [f.key, f]))), []);
 
   useEffect(() => {
-    if (month) void api.insights(month).then(setItems);
-    void api.recurringTimeline().then(setTimeline);
+    if (month) void api.insights(month, card).then(setItems);
+    void api.recurringTimeline(card).then(setTimeline);
     void loadFlags();
-  }, [month, loadFlags]);
+  }, [month, card, loadFlags]);
 
   async function flagDone() {
     setFlagging(null);
@@ -57,7 +57,7 @@ export function Insights({ month, go, refresh }: Shared) {
       {timeline.length > 0 && (
         <section className="section" style={{ marginBottom: 28 }}>
           <h2 className="section-title">חיובים קבועים לאורך זמן</h2>
-          <RecurringTimeline rows={timeline} />
+          <RecurringTimeline rows={timeline} showCard={!card && cards.length >= 2} />
         </section>
       )}
       {items == null ? null : items.length === 0 ? (

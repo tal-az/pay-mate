@@ -57,6 +57,8 @@ export interface BackupBudget {
 
 export interface BackupImport {
   at: string;
+  /** Null on imports from before companies were recorded. */
+  company: string | null;
   source: Source;
   label: string;
   added: number;
@@ -206,6 +208,7 @@ export function parseBackup(raw: string): BackupData {
     const o = obj(item, `ייבוא ${i + 1}`);
     return {
       at: text(o, 'at', `ייבוא ${i + 1}`),
+      company: nullableText(o, 'company'),
       source: source(o),
       label: textOr(o, 'label', ''),
       added: typeof o.added === 'number' ? o.added : 0,

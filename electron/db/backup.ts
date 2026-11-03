@@ -55,7 +55,7 @@ export function exportData(db: Db): BackupData {
     .prepare('SELECT c.key AS categoryKey, b.monthly_amount AS monthlyAmount FROM budgets b JOIN categories c ON c.id = b.category_id ORDER BY c.id')
     .all() as unknown as BackupBudget[];
   const imports = db
-    .prepare('SELECT at, source, label, added, skipped FROM imports ORDER BY id')
+    .prepare('SELECT at, company, source, label, added, skipped FROM imports ORDER BY id')
     .all() as unknown as BackupImport[];
   const flags = (db
     .prepare('SELECT tx_id, kind, comment, resolved, created_at, resolved_at FROM tx_flags ORDER BY created_at, tx_id')
@@ -100,8 +100,8 @@ export function restoreData(db: Db, data: BackupData) {
     for (const r of data.reviews) insertReview.run(r.merchantKey, r.decidedAt);
     const insertBudget = db.prepare('INSERT INTO budgets (category_id, monthly_amount) VALUES (?,?)');
     for (const b of data.budgets) insertBudget.run(idOf(b.categoryKey), b.monthlyAmount);
-    const insertImport = db.prepare('INSERT INTO imports (at, source, label, added, skipped) VALUES (?,?,?,?,?)');
-    for (const i of data.imports) insertImport.run(i.at, i.source, i.label, i.added, i.skipped);
+    const insertImport = db.prepare('INSERT INTO imports (at, company, source, label, added, skipped) VALUES (?,?,?,?,?,?)');
+    for (const i of data.imports) insertImport.run(i.at, i.company ?? null, i.source, i.label, i.added, i.skipped);
     const insertFlag = db.prepare('INSERT INTO tx_flags (tx_id, kind, comment, resolved, created_at, resolved_at) VALUES (?,?,?,?,?,?)');
     for (const f of data.flags ?? []) insertFlag.run(f.txId, f.kind, f.comment, f.resolved ? 1 : 0, f.createdAt, f.resolvedAt);
     const insertInsightFlag = db.prepare(

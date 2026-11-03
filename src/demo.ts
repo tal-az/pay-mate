@@ -1,4 +1,5 @@
-import { buildInsights, monthOf, recurringTimeline } from '../shared/core/insights';
+import { insightsFor, monthOf, recurringTimeline } from '../shared/core/insights';
+import { filterByCard, listCards, totalsByCard } from '../shared/core/cards';
 import { CATEGORY_SEEDS, makeCategory } from '../shared/core/categorize';
 import { emptyData, makeBackup } from '../shared/backup';
 import { MAX_FLAG_COMMENT, insightFlagKey } from '../shared/api';
@@ -16,9 +17,11 @@ function tx(month: string, day: string, merchant: string, key: string, amount: n
   return {
     id: `demo-${++n}`, purchaseDate: `${purchaseMonth}-${day}`, chargeDate: `${month}-02`, merchant, categoryKey: key,
     chargedAmount: amount, originalAmount: amount, originalCurrency: 'ILS', standingOrder: false, foreignSite: false,
-    discount: 0, cardLast4: '1958', ...extra,
+    discount: 0, company: 'isracard', cardLast4: '1958', ...extra,
   };
 }
+
+const ON_MAX = { company: 'max', cardLast4: '4821' };
 
 function monthRows(month: string, scale: number): TxRow[] {
   const r = (x: number) => Math.round(x * scale * 100) / 100;
@@ -37,6 +40,9 @@ function monthRows(month: string, scale: number): TxRow[] {
     tx(month, '23', 'ביטוח רכב', 'bills', 124.45, { standingOrder: true, discount: 6.55 }),
     tx(month, '22', 'בית מרקחת', 'health', r(74.9)),
     tx(month, '14', 'AWS EMEA', 'subscriptions', 2.06, { foreignSite: true, originalAmount: 0.67, originalCurrency: 'USD' }),
+    tx(month, '18', 'סופר השכונה', 'groceries', r(164.3), ON_MAX),
+    tx(month, '10', 'סטודיו יוגה', 'health', 220, { ...ON_MAX, standingOrder: true }),
+    tx(month, '06', 'קפה ליד הבית', 'restaurants', r(36), ON_MAX),
   ];
 }
 
@@ -65,15 +71,17 @@ const flagMeta = new Map<string, { createdAt: string; resolvedAt: string | null 
 const budgets: Budget[] = [{ categoryKey: 'groceries', monthlyAmount: 700 }, { categoryKey: 'restaurants', monthlyAmount: 300 }];
 
 const sleep = () => new Promise((r) => setTimeout(r, 20));
-const monthsDesc = () => [...new Set(data.map(monthOf))].sort().reverse();
-const rowsOf = (month: string) => data.filter((t) => monthOf(t) === month).sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate));
+const monthsDesc = (card?: string) => [...new Set(filterByCard(data, card).map(monthOf))].sort().reverse();
+const rowsOf = (month: string, card?: string) => filterByCard(data, card).filter((t) => monthOf(t) === month).sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate));
+const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
 
 export const demoApi: PayMateApi = {
   async months() { await sleep(); return monthsDesc(); },
-  async monthTotals() {
-    return monthsDesc().slice().reverse().map((m) => ({ month: m, total: rowsOf(m).reduce((s, t) => s + t.chargedAmount, 0) }));
+  async cards() { return listCards(data, [{ at: hoursAgo(72), company: 'isracard' }, { at: hoursAgo(8), company: 'max' }]); },
+  async monthTotals(card) {
+    return monthsDesc(card).slice().reverse().map((m) => ({ month: m, total: rowsOf(m, card).reduce((s, t) => s + t.chargedAmount, 0) }));
   },
-  async recurringTimeline() { return recurringTimeline(data, 6); },
+  async recurringTimeline(card) { return recurringTimeline(data, 6, card); },
   async unknownMerchants(month) {
     await sleep();
     const m = new Map<string, { merchant: string; count: number; total: number; firstDate: string; lastDate: string }>();
@@ -102,11 +110,11 @@ export const demoApi: PayMateApi = {
     categories.push(c);
     return c;
   },
-  async transactions(month) { await sleep(); return rowsOf(month); },
-  async summary(month): Promise<MonthSummary> {
+  async transactions(month, card) { await sleep(); return rowsOf(month, card); },
+  async summary(month, card): Promise<MonthSummary> {
     await sleep();
-    const rows = rowsOf(month);
-    const prevMonth = monthsDesc().filter((m) => m < month)[0] ?? null;
+    const rows = rowsOf(month, card);
+    const prevMonth = monthsDesc(card).filter((m) => m < month)[0] ?? null;
     const byCat = new Map<string, { key: string; name: string; color: string; amount: number; count: number }>();
     const byMerchant = new Map<string, { merchant: string; amount: number; count: number }>();
     for (const t of rows) {
@@ -118,8 +126,8 @@ export const demoApi: PayMateApi = {
     }
     return {
       month, total: rows.reduce((s, t) => s + t.chargedAmount, 0), prevMonth,
-      prevTotal: prevMonth ? rowsOf(prevMonth).reduce((s, t) => s + t.chargedAmount, 0) : null,
-      transactionCount: rows.length, cards: ['1958'],
+      prevTotal: prevMonth ? rowsOf(prevMonth, card).reduce((s, t) => s + t.chargedAmount, 0) : null,
+      transactionCount: rows.length, cards: [...new Set(rows.map((t) => t.cardLast4))], byCard: totalsByCard(rows),
       byCategory: [...byCat.values()].sort((a, b) => b.amount - a.amount),
       topMerchants: [...byMerchant.values()].sort((a, b) => b.amount - a.amount).slice(0, 5),
     };
@@ -175,10 +183,10 @@ export const demoApi: PayMateApi = {
   },
   async clearInsightFlag(key) { insightFlags.delete(key); },
   async insightFlags() { return [...insightFlags.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); },
-  async insights(month) {
+  async insights(month, card) {
     await sleep();
-    return buildInsights({
-      month, prevMonth: monthsDesc().filter((m) => m < month)[0] ?? null, all: data,
+    return insightsFor({
+      month, card, all: data,
       categoryNames: Object.fromEntries(categories.map((c) => [c.key, c.name])),
     });
   },

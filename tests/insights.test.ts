@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildInsights, recurringTimeline } from '../shared/core/insights';
+import { buildInsights, insightsFor, recurringTimeline } from '../shared/core/insights';
 import type { TxRow } from '../shared/api';
 
 let n = 0;
 const tx = (over: Partial<TxRow>): TxRow => ({
   id: `t${++n}`, purchaseDate: '2026-10-01', chargeDate: '2026-10-02', merchant: 'חנות', categoryKey: 'other',
   chargedAmount: 100, originalAmount: 100, originalCurrency: 'ILS', standingOrder: false, foreignSite: false,
-  discount: 0, cardLast4: '1234', ...over,
+  discount: 0, company: 'isracard', cardLast4: '1234', ...over,
 });
 const names = { groceries: 'מזון ומכולת', other: 'אחר' };
 const run = (all: TxRow[], month = '2026-10', prevMonth: string | null = '2026-09') =>
@@ -72,14 +72,14 @@ describe('recurring charge insights', () => {
 
   it('flags a monthly charge that is missing this month', () => {
     const all = [rec('Netflix', '07'), rec('Netflix', '08'), rec('Netflix', '09'), other('10')];
-    const missing = run(all, '2026-10').find((i) => i.id === 'rec-missing-1234-Netflix')!;
+    const missing = run(all, '2026-10').find((i) => i.id === 'rec-missing-isracard:1234-Netflix')!;
     expect(missing.attention).toBe(true);
     expect(missing.text).toContain('לא חויב');
   });
 
   it('says a charge seems to have stopped after two missing months', () => {
     const all = [rec('Netflix', '06'), rec('Netflix', '07'), rec('Netflix', '08'), other('09'), other('10')];
-    const stopped = run(all, '2026-10').find((i) => i.id === 'rec-stopped-1234-Netflix')!;
+    const stopped = run(all, '2026-10').find((i) => i.id === 'rec-stopped-isracard:1234-Netflix')!;
     expect(stopped.attention).toBe(false);
     expect(stopped.text).toContain('2 חודשים');
   });
@@ -98,14 +98,14 @@ describe('recurring charge insights', () => {
 
   it('reports a price change on a recurring charge', () => {
     const all = [rec('Spotify', '08', 20), rec('Spotify', '09', 20), rec('Spotify', '10', 23)];
-    const price = run(all, '2026-10').find((i) => i.id === 'rec-price-1234-Spotify')!;
+    const price = run(all, '2026-10').find((i) => i.id === 'rec-price-isracard:1234-Spotify')!;
     expect(price.text).toContain('עלה');
     expect(price.attention).toBe(true);
   });
 
   it('flags a recurring charge billed twice in one month', () => {
     const all = [rec('Gym', '08', 100), rec('Gym', '09', 100), rec('Gym', '10', 100, { id: 'g1' }), rec('Gym', '10', 100, { id: 'g2' })];
-    expect(ids(all, '2026-10')).toContain('rec-double-1234-Gym');
+    expect(ids(all, '2026-10')).toContain('rec-double-isracard:1234-Gym');
   });
 
   it('summarizes the monthly commitments', () => {

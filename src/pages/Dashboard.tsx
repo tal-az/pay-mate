@@ -3,21 +3,22 @@ import { api, isDesktop } from '../api';
 import { ils, ilsExact, monthLabel } from '../format';
 import { Donut } from '../charts/Donut';
 import { MonthBars } from '../charts/MonthBars';
+import { cardLabel } from '../../shared/core/cards';
 import type { Insight, MonthSummary, MonthTotal } from '../../shared/api';
 import type { Shared } from '../App';
 
-export function Dashboard({ month, months, go, selectMonth }: Shared) {
+export function Dashboard({ month, months, cards, card, selectCard, go, selectMonth }: Shared) {
   const [summary, setSummary] = useState<MonthSummary | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [totals, setTotals] = useState<MonthTotal[]>([]);
 
   useEffect(() => {
     if (!month) return;
-    void api.summary(month).then(setSummary);
-    void api.insights(month).then(setInsights);
-  }, [month]);
+    void api.summary(month, card).then(setSummary);
+    void api.insights(month, card).then(setInsights);
+  }, [month, card]);
 
-  useEffect(() => { void api.monthTotals().then(setTotals); }, [months]);
+  useEffect(() => { void api.monthTotals(card).then(setTotals); }, [months, card]);
 
   if (months.length === 0 || !month) {
     return (
@@ -32,15 +33,31 @@ export function Dashboard({ month, months, go, selectMonth }: Shared) {
   }
   if (!summary) return null;
 
+  const selected = cards.find((c) => c.key === card);
+  if (selected && summary.transactionCount === 0) {
+    return (
+      <div className="empty">
+        <h2>אין חיובים ב{monthLabel(month)}</h2>
+        <p>בכרטיס {cardLabel(selected.company, selected.last4)} אין עסקאות בחודש הזה.</p>
+        <p style={{ marginTop: 20 }}><button className="btn primary" onClick={() => selectCard('')}>הצגת כל הכרטיסים</button></p>
+      </div>
+    );
+  }
+
   const diff = summary.prevTotal == null ? null : summary.total - summary.prevTotal;
   const max = Math.max(...summary.byCategory.map((c) => c.amount), 1);
+  const maxCard = Math.max(...summary.byCard.map((c) => c.amount), 1);
   const top = insights.slice(0, 2);
 
   return (
     <>
       <h1 className="page-title">חיוב {monthLabel(month)}</h1>
       <p className="help">
-        {summary.transactionCount} עסקאות בכרטיס המסתיים ב־{summary.cards.join(', ')}
+        {selected
+          ? `${summary.transactionCount} עסקאות בכרטיס ${cardLabel(selected.company, selected.last4)}`
+          : summary.byCard.length > 1
+            ? `${summary.transactionCount} עסקאות ב־${summary.byCard.length} כרטיסים`
+            : `${summary.transactionCount} עסקאות בכרטיס המסתיים ב־${summary.cards.join(', ')}`}
       </p>
 
       <div className="total-row">
@@ -68,6 +85,22 @@ export function Dashboard({ month, months, go, selectMonth }: Shared) {
         </section>
 
         <div>
+          {!card && summary.byCard.length > 1 && (
+            <section className="section">
+              <h2 className="section-title">לפי כרטיס</h2>
+              {summary.byCard.map((c) => {
+                const label = cardLabel(c.company, c.last4);
+                return (
+                  <button key={c.key} className="cat-row" onClick={() => selectCard(c.key)} aria-label={`${label}, ${ils(c.amount)}. הצגת הכרטיס הזה`}>
+                    <span className="dot" style={{ background: 'var(--ink-2)' }} />
+                    <span>{label}</span>
+                    <span className="bar"><i style={{ width: `${(c.amount / maxCard) * 100}%`, background: 'var(--ink-2)' }} /></span>
+                    <span className="amount">{ils(c.amount)}</span>
+                  </button>
+                );
+              })}
+            </section>
+          )}
           {totals.length >= 2 && (
             <section className="section">
               <h2 className="section-title">החיוב בחודשים האחרונים</h2>

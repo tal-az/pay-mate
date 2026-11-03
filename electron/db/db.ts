@@ -11,6 +11,9 @@ export function openDb(file: string, schemaDir = __dirname): Db {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(readFileSync(join(schemaDir, 'schema.sql'), 'utf-8'));
+  // A database from before companies were recorded on imports keeps its table, so the column is added here.
+  const importColumns = db.prepare('PRAGMA table_info(imports)').all() as Array<{ name: string }>;
+  if (!importColumns.some((c) => c.name === 'company')) db.exec('ALTER TABLE imports ADD COLUMN company TEXT');
   const insert = db.prepare(
     'INSERT INTO categories (key, name, color) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET name = excluded.name, color = excluded.color',
   );
@@ -66,8 +69,8 @@ export function importStatement(db: Db, stmt: ParsedStatement, label: string, so
       if (Number(res.changes) > 0) added++;
       else skipped++;
     }
-    db.prepare('INSERT INTO imports (at, source, label, added, skipped) VALUES (?,?,?,?,?)').run(
-      new Date().toISOString(), source, label, added, skipped,
+    db.prepare('INSERT INTO imports (at, company, source, label, added, skipped) VALUES (?,?,?,?,?,?)').run(
+      new Date().toISOString(), stmt.company, source, label, added, skipped,
     );
     db.exec('COMMIT');
   } catch (e) {
