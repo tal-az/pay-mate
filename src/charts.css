@@ -14,7 +14,7 @@
 .monthbars { display: flex; align-items: flex-end; gap: 10px; height: 168px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
 .mb { all: unset; box-sizing: border-box; flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; gap: 4px; position: relative; }
 .mb-track { width: 100%; max-width: 24px; flex: 1; display: flex; align-items: flex-end; }
-.mb-track i { display: block; width: 100%; background: #bdb7a6; border-radius: 4px 4px 0 0; transition: background 140ms var(--ease-out); }
+.mb-track i { display: block; width: 100%; background: #c4bdf0; border-radius: 4px 4px 0 0; transition: background 140ms var(--ease-out); }
 .mb.on .mb-track i { background: var(--ink); }
 .mb:hover .mb-track i, .mb:focus-visible .mb-track i { background: var(--ink-2); }
 .mb.on:hover .mb-track i { background: var(--ink); }
@@ -26,7 +26,7 @@
 .strip { margin: 0 0 16px; }
 .strip-bars { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--line); padding-top: 18px; }
 .strip-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
-.strip-col i { display: block; width: 100%; max-width: 22px; background: #bdb7a6; border-radius: 3px 3px 0 0; }
+.strip-col i { display: block; width: 100%; max-width: 22px; background: #c4bdf0; border-radius: 3px 3px 0 0; }
 .strip-col i.peak { background: var(--ink); }
 .strip-col:hover i { background: var(--ink-2); }
 .strip-col em { position: absolute; top: -16px; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }

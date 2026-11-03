@@ -23,7 +23,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     title: 'PayMate',
-    backgroundColor: '#faf9f5',
+    backgroundColor: '#f4f2ff',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),

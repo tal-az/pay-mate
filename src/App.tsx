@@ -108,7 +108,7 @@ export function App() {
         <div className="brand">
           <svg className="brand-tag" viewBox="0 0 28 22" aria-hidden="true">
             <path d="M0 11 8 0h20v22H8z" fill="currentColor" />
-            <circle cx="9" cy="11" r="2" fill="#2a2620" />
+            <circle cx="9" cy="11" r="2" fill="#17114a" />
           </svg>
           PayMate
         </div>
