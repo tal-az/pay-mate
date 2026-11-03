@@ -11,3 +11,4 @@ release
 PRODUCT.md
 dist-web
 paymate-backup*.json
+.wrangler

@@ -253,6 +253,22 @@ input.money { width: 120px; text-align: left; }
   .price-tag { font-size: 60px; }
 }
 
+/* Phones: the side rail becomes a scrolling strip along the top. */
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+  .rail { width: auto; flex-direction: row; align-items: center; gap: 2px; padding: 8px 10px; overflow-x: auto; }
+  .brand { padding: 0 10px; font-size: 18px; }
+  .nav-item { white-space: nowrap; flex: none; }
+  .privacy { display: none; }
+  .main { min-height: 0; padding: 16px 16px 40px; }
+  .price-tag { font-size: 44px; padding: 6px 20px 10px 30px; }
+  .total-row { gap: 12px; margin-bottom: 24px; }
+  .budget-row { grid-template-columns: 14px 1fr; row-gap: 8px; }
+  .drop { padding: 28px 16px; }
+  .nudge { left: 16px; bottom: 16px; max-width: calc(100vw - 32px); }
+  table.tx { display: block; overflow-x: auto; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
