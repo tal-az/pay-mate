@@ -1,7 +1,7 @@
 import type { Db } from './db';
 import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
 import type {
-  Budget, Category, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
+  Budget, Category, FlagKind, FlaggedTx, InsightFlag, LastUpdate, MonthTotal, TimelineRow, UnknownMerchant, CategoryTotal, Insight, MerchantTotal, MonthSummary, TxRow,
 } from '../../shared/api';
 
 interface Row {
@@ -17,6 +17,9 @@ interface Row {
   foreign_site: number;
   discount: number;
   card_last4: string;
+  flag_kind: FlagKind | null;
+  flag_resolved: number | null;
+  flag_comment: string | null;
 }
 
 const MONTH_SQL = 'COALESCE(substr(t.charge_date, 1, 7), substr(t.purchase_date, 1, 7))';
@@ -35,12 +38,41 @@ function toTx(r: Row): TxRow {
     foreignSite: r.foreign_site === 1,
     discount: r.discount,
     cardLast4: r.card_last4,
+    ...(r.flag_kind ? { flag: { kind: r.flag_kind, resolved: r.flag_resolved === 1, comment: r.flag_comment ?? '' } } : {}),
   };
 }
 
 const SELECT_TX = `SELECT t.id, t.purchase_date, t.charge_date, t.merchant, c.key AS category_key, t.charged_amount,
-  t.original_amount, t.original_currency, t.standing_order, t.foreign_site, t.discount, t.card_last4
-  FROM transactions t LEFT JOIN categories c ON c.id = t.category_id`;
+  t.original_amount, t.original_currency, t.standing_order, t.foreign_site, t.discount, t.card_last4,
+  f.kind AS flag_kind, f.resolved AS flag_resolved, f.comment AS flag_comment
+  FROM transactions t LEFT JOIN categories c ON c.id = t.category_id LEFT JOIN tx_flags f ON f.tx_id = t.id`;
+
+const INSIGHT_FLAG_COLUMNS = `key, month, insight_kind AS insightKind, text, comment, resolved, created_at AS createdAt, resolved_at AS resolvedAt`;
+
+export function listInsightFlags(db: Db): InsightFlag[] {
+  return (db.prepare(`SELECT ${INSIGHT_FLAG_COLUMNS} FROM insight_flags ORDER BY created_at DESC, key`).all() as unknown as Array<
+    Omit<InsightFlag, 'resolved'> & { resolved: number }
+  >).map((r) => ({ ...r, resolved: r.resolved === 1 }));
+}
+
+/** Every flag in all months, newest first. */
+export function listFlags(db: Db): FlaggedTx[] {
+  const rows = db
+    .prepare(
+      `SELECT f.tx_id, f.kind, f.comment, f.resolved, f.created_at, f.resolved_at, t.merchant, t.purchase_date,
+              t.charged_amount, t.original_amount, t.original_currency
+       FROM tx_flags f JOIN transactions t ON t.id = f.tx_id ORDER BY f.created_at DESC, f.tx_id`,
+    )
+    .all() as unknown as Array<{
+    tx_id: string; kind: FlagKind; comment: string; resolved: number; created_at: string; resolved_at: string | null; merchant: string;
+    purchase_date: string; charged_amount: number; original_amount: number; original_currency: string;
+  }>;
+  return rows.map((r) => ({
+    txId: r.tx_id, kind: r.kind, comment: r.comment, resolved: r.resolved === 1, createdAt: r.created_at, resolvedAt: r.resolved_at,
+    merchant: r.merchant, purchaseDate: r.purchase_date, chargedAmount: r.charged_amount, originalAmount: r.original_amount,
+    originalCurrency: r.original_currency,
+  }));
+}
 
 export function listMonths(db: Db): string[] {
   const rows = db.prepare(`SELECT DISTINCT ${MONTH_SQL} AS m FROM transactions t ORDER BY m DESC`).all() as Array<{ m: string }>;

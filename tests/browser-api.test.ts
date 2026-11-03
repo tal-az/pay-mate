@@ -134,6 +134,24 @@ describe('browser API, end to end', () => {
     expect((await browserApi.unknownMerchants('2026-10')).map((m) => m.merchant)).toContain('חנות מסתורית');
   });
 
+  it('flags a transaction, keeps the flag across a backup, and resolves it', async () => {
+    await browserApi.importFiles([{ name: 'oct.xlsx', data: await xlsx() }]);
+    const [first] = await browserApi.transactions('2026-10');
+    await browserApi.setFlag(first.id, 'suspicious', 'לבדוק');
+    expect((await browserApi.transactions('2026-10')).find((t) => t.id === first.id)!.flag)
+      .toEqual({ kind: 'suspicious', resolved: false, comment: 'לבדוק' });
+
+    const backup = await browserApi.exportBackup();
+    await replaceData(emptyData());
+    await browserApi.restoreBackup(backup);
+    expect(await browserApi.flags()).toMatchObject([{ txId: first.id, kind: 'suspicious', resolved: false }]);
+
+    await browserApi.resolveFlag(first.id, true);
+    expect((await browserApi.flags())[0].resolved).toBe(true);
+    await browserApi.clearFlag(first.id);
+    expect(await browserApi.flags()).toEqual([]);
+  });
+
   it('backs up, loses everything, and restores', async () => {
     await browserApi.importFiles([{ name: 'oct.xlsx', data: await xlsx() }]);
     await browserApi.mapMerchant('חנות מסתורית', 'health');

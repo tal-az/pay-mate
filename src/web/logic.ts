@@ -1,7 +1,9 @@
 import { CATEGORY_SEEDS, categorize, makeCategory, type UserRule } from '../../shared/core/categorize';
 import { buildInsights, monthOf, recurringTimeline } from '../../shared/core/insights';
 import type { BackupData, BackupRule, BackupTransaction } from '../../shared/backup';
+import { FLAG_KINDS, MAX_FLAG_COMMENT, insightFlagKey } from '../../shared/api';
 import type {
+  FlagKind, FlaggedTx, InsightFlag, TxFlag,
   Budget, Category, CategoryTotal, Insight, LastUpdate, MerchantTotal, MonthSummary, MonthTotal, TimelineRow, TxRow, UnknownMerchant,
 } from '../../shared/api';
 import type { ParsedStatement, Source } from '../../shared/types';
@@ -105,6 +107,61 @@ export function undoMerchant(data: BackupData, merchant: string) {
   for (const t of data.transactions) if (t.merchant === merchant && !t.categoryLocked) t.categoryKey = 'other';
 }
 
+/** Flags a transaction, or edits its flag; an edited flag stays resolved or open as it was. */
+export function setFlag(data: BackupData, txId: string, kind: FlagKind, comment: string) {
+  if (!FLAG_KINDS.includes(kind)) throw new Error(`unknown flag kind ${kind}`);
+  const text = comment.trim();
+  if (text.length > MAX_FLAG_COMMENT) throw new Error(`ההערה ארוכה מדי (עד ${MAX_FLAG_COMMENT} תווים)`);
+  if (!data.transactions.some((t) => t.id === txId)) throw new Error('transaction not found');
+  const existing = data.flags.find((f) => f.txId === txId);
+  if (existing) {
+    existing.kind = kind;
+    existing.comment = text;
+  } else {
+    data.flags.push({ txId, kind, comment: text, resolved: false, createdAt: new Date().toISOString(), resolvedAt: null });
+  }
+}
+
+export function resolveFlag(data: BackupData, txId: string, resolved: boolean) {
+  const f = data.flags.find((x) => x.txId === txId);
+  if (!f) return;
+  f.resolved = resolved;
+  f.resolvedAt = resolved ? new Date().toISOString() : null;
+}
+
+export function clearFlag(data: BackupData, txId: string) {
+  data.flags = data.flags.filter((f) => f.txId !== txId);
+}
+
+/** Adds an insight to the follow-up list, or edits its comment; an edited flag stays resolved or open as it was. */
+export function setInsightFlag(data: BackupData, month: string, insight: { id: string; kind: string; text: string }, comment: string) {
+  const note = comment.trim();
+  if (note.length > MAX_FLAG_COMMENT) throw new Error(`ההערה ארוכה מדי (עד ${MAX_FLAG_COMMENT} תווים)`);
+  const key = insightFlagKey(month, insight.id);
+  const existing = data.insightFlags.find((f) => f.key === key);
+  if (existing) existing.comment = note;
+  else {
+    data.insightFlags.push({
+      key, month, insightKind: insight.kind, text: insight.text, comment: note, resolved: false, createdAt: new Date().toISOString(), resolvedAt: null,
+    });
+  }
+}
+
+export function resolveInsightFlag(data: BackupData, key: string, resolved: boolean) {
+  const f = data.insightFlags.find((x) => x.key === key);
+  if (!f) return;
+  f.resolved = resolved;
+  f.resolvedAt = resolved ? new Date().toISOString() : null;
+}
+
+export function clearInsightFlag(data: BackupData, key: string) {
+  data.insightFlags = data.insightFlags.filter((f) => f.key !== key);
+}
+
+export function listInsightFlags(data: BackupData): InsightFlag[] {
+  return data.insightFlags.map((f) => ({ ...f })).sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.key < b.key ? -1 : 1));
+}
+
 export function setBudget(data: BackupData, categoryKey: string, monthlyAmount: number | null) {
   requireCategory(data, categoryKey);
   data.budgets = data.budgets.filter((b) => b.categoryKey !== categoryKey);
@@ -113,7 +170,8 @@ export function setBudget(data: BackupData, categoryKey: string, monthlyAmount: 
 
 // ---- Queries ----
 
-function toTx(t: BackupTransaction): TxRow {
+function toTx(t: BackupTransaction, flags: Map<string, TxFlag>): TxRow {
+  const f = flags.get(t.id);
   return {
     id: t.id,
     purchaseDate: t.purchaseDate,
@@ -127,7 +185,19 @@ function toTx(t: BackupTransaction): TxRow {
     foreignSite: t.foreignSite,
     discount: t.discount,
     cardLast4: t.cardLast4,
+    ...(f ? { flag: { kind: f.kind, resolved: f.resolved, comment: f.comment } } : {}),
   };
+}
+
+/** Every flag in all months, newest first. */
+export function listFlags(data: BackupData): FlaggedTx[] {
+  const txs = new Map(data.transactions.map((t) => [t.id, t]));
+  const out: FlaggedTx[] = [];
+  for (const f of data.flags) {
+    const t = txs.get(f.txId);
+    if (t) out.push({ ...f, merchant: t.merchant, purchaseDate: t.purchaseDate, chargedAmount: t.chargedAmount, originalAmount: t.originalAmount, originalCurrency: t.originalCurrency });
+  }
+  return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.txId < b.txId ? -1 : 1));
 }
 
 /** Newest purchase first; the id breaks ties so the order is stable. */
@@ -135,7 +205,8 @@ const newestFirst = (a: TxRow, b: TxRow) =>
   a.purchaseDate < b.purchaseDate ? 1 : a.purchaseDate > b.purchaseDate ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
 export function allTransactions(data: BackupData): TxRow[] {
-  return data.transactions.map(toTx).sort(newestFirst);
+  const flags = new Map(data.flags.map((f) => [f.txId, f]));
+  return data.transactions.map((t) => toTx(t, flags)).sort(newestFirst);
 }
 
 export function monthTransactions(data: BackupData, month: string): TxRow[] {

@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { foreignAmount, ilsExact, monthLabel, shortDate } from '../format';
+import { FLAG_LABEL } from '../flags';
+import { FlagEditor } from '../components/FlagEditor';
+import { FlagIcon } from '../components/FlagIcon';
 import { DailyStrip } from '../charts/DailyStrip';
 import type { TxRow } from '../../shared/api';
 import type { Shared } from '../App';
@@ -10,6 +13,7 @@ export function Transactions({ month, months, categories, filterCategory, go, re
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(filterCategory);
   const [pending, setPending] = useState<{ tx: TxRow; key: string } | null>(null);
+  const [flagging, setFlagging] = useState<string | null>(null);
 
   useEffect(() => {
     if (month) void api.transactions(month).then(setRows);
@@ -24,6 +28,12 @@ export function Transactions({ month, months, categories, filterCategory, go, re
     if (!pending) return;
     await api.setCategory(pending.tx.id, pending.key, all);
     setPending(null);
+    if (month) setRows(await api.transactions(month));
+    refresh();
+  }
+
+  async function flagDone() {
+    setFlagging(null);
     if (month) setRows(await api.transactions(month));
     refresh();
   }
@@ -77,12 +87,22 @@ export function Transactions({ month, months, categories, filterCategory, go, re
           </thead>
           <tbody>
             {shown.map((t) => (
-              <tr key={t.id}>
+              <Fragment key={t.id}>
+              <tr>
                 <td className="date">{shortDate(t.purchaseDate)}</td>
                 <td>
                   {t.merchant}
                   {t.standingOrder && <span className="flag">הוראת קבע</span>}
                   {t.originalCurrency !== 'ILS' && <span className="flag">{foreignAmount(t.originalCurrency, t.originalAmount)}</span>}
+                  <button
+                    className="flag-btn"
+                    aria-label={t.flag ? `עריכת הדגל של ${t.merchant}` : `סימון ${t.merchant} בדגל`}
+                    title={t.flag ? [FLAG_LABEL[t.flag.kind], t.flag.resolved ? 'טופל' : '', t.flag.comment].filter(Boolean).join(' · ') : 'סימון בדגל'}
+                    aria-expanded={flagging === t.id}
+                    onClick={() => setFlagging(flagging === t.id ? null : t.id)}
+                  >
+                    <FlagIcon on={!!t.flag} resolved={t.flag?.resolved} />
+                  </button>
                 </td>
                 <td>
                   <select
@@ -96,6 +116,20 @@ export function Transactions({ month, months, categories, filterCategory, go, re
                 </td>
                 <td className="num"><b>{ilsExact(t.chargedAmount)}</b></td>
               </tr>
+              {flagging === t.id && (
+                <tr className="flag-row">
+                  <td colSpan={4}>
+                    <FlagEditor
+                      initial={t.flag}
+                      save={(kind, comment) => api.setFlag(t.id, kind, comment)}
+                      remove={t.flag ? () => api.clearFlag(t.id) : undefined}
+                      onDone={() => void flagDone()}
+                      onCancel={() => setFlagging(null)}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

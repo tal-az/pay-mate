@@ -1,4 +1,5 @@
 import { HEX_COLOR, MAX_CATEGORY_NAME, SEED_KEYS } from './core/categorize';
+import { FLAG_KINDS, MAX_FLAG_COMMENT, type FlagKind, type InsightFlag, type TxFlag } from './api';
 import type { Source } from './types';
 
 /**
@@ -64,6 +65,8 @@ export interface BackupImport {
 
 /** Everything the app stores. The website keeps exactly this document in IndexedDB. */
 export interface BackupData {
+  flags: TxFlag[];
+  insightFlags: InsightFlag[];
   categories: BackupCategory[];
   transactions: BackupTransaction[];
   rules: BackupRule[];
@@ -78,7 +81,7 @@ export interface Backup extends BackupData {
   exportedAt: string;
 }
 
-export const emptyData = (): BackupData => ({ categories: [], transactions: [], rules: [], reviews: [], budgets: [], imports: [] });
+export const emptyData = (): BackupData => ({ categories: [], transactions: [], rules: [], reviews: [], budgets: [], imports: [], flags: [], insightFlags: [] });
 
 export function makeBackup(data: BackupData): Backup {
   return { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), ...data };
@@ -210,5 +213,43 @@ export function parseBackup(raw: string): BackupData {
     };
   });
 
-  return { categories: [...customs.values()], transactions, rules: [...rules.values()], reviews: [...reviews.values()], budgets: [...budgets.values()], imports };
+  // A flag whose transaction is missing or whose kind this version lacks is dropped; there is nothing to show it on.
+  const flags = new Map<string, TxFlag>();
+  list(root, 'flags').forEach((item, i) => {
+    const o = obj(item, `דגל ${i + 1}`);
+    const txId = text(o, 'txId', `דגל ${i + 1}`);
+    if (!seen.has(txId) || !FLAG_KINDS.includes(o.kind as FlagKind)) return;
+    const resolved = flag(o, 'resolved');
+    flags.set(txId, {
+      txId,
+      kind: o.kind as FlagKind,
+      comment: textOr(o, 'comment', '').slice(0, MAX_FLAG_COMMENT),
+      resolved,
+      createdAt: textOr(o, 'createdAt', new Date(0).toISOString()),
+      resolvedAt: resolved ? textOr(o, 'resolvedAt', new Date(0).toISOString()) : null,
+    });
+  });
+
+  const insightFlags = new Map<string, InsightFlag>();
+  list(root, 'insightFlags').forEach((item, i) => {
+    const where = `דגל תובנה ${i + 1}`;
+    const o = obj(item, where);
+    const key = text(o, 'key', where);
+    const resolved = flag(o, 'resolved');
+    insightFlags.set(key, {
+      key,
+      month: text(o, 'month', where),
+      insightKind: textOr(o, 'insightKind', ''),
+      text: text(o, 'text', where),
+      comment: textOr(o, 'comment', '').slice(0, MAX_FLAG_COMMENT),
+      resolved,
+      createdAt: textOr(o, 'createdAt', new Date(0).toISOString()),
+      resolvedAt: resolved ? textOr(o, 'resolvedAt', new Date(0).toISOString()) : null,
+    });
+  });
+
+  return {
+    categories: [...customs.values()], transactions, rules: [...rules.values()], reviews: [...reviews.values()],
+    budgets: [...budgets.values()], imports, flags: [...flags.values()], insightFlags: [...insightFlags.values()],
+  };
 }
