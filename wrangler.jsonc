@@ -3,7 +3,6 @@
   "name": "paymate",
   "compatibility_date": "2026-11-01",
   // The website is only static files: npm run build:web writes them to dist-web.
-  "assets": {
-    "directory": "./dist-web"
-  }
+  // It is a Cloudflare Pages project, which gets its own paymate.pages.dev address.
+  "pages_build_output_dir": "./dist-web"
 }

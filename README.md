@@ -36,21 +36,23 @@ Releases are built by `.github/workflows/release.yml` when a `v*` tag is pushed.
 ```bash
 npm run build:web      # writes the static site to dist-web/
 npm run preview:web    # serve it locally
-npx wrangler dev       # serve it like Cloudflare does, including web/public/_headers
+npx wrangler pages dev dist-web   # serve it like Cloudflare does, including the _headers file
 ```
 
 ## Deploy the website to Cloudflare
 
-The site is plain static files. `wrangler.jsonc` points Workers static assets at `dist-web/`.
+The site is plain static files, deployed as a Cloudflare Pages project named `paymate` (address `paymate.pages.dev`). `wrangler.jsonc` points Pages at `dist-web/`.
 
 Command line:
 
 ```bash
 npm run build:web
-npx wrangler deploy
+npx wrangler pages deploy dist-web --project-name paymate --branch main
 ```
 
-Git-connected build (Workers Builds): set the build command to `npm ci && npm run build:web` and the deploy command to `npx wrangler deploy`. Set the build variable `ELECTRON_SKIP_BINARY_DOWNLOAD=1` so the build does not download Electron.
+The project already exists. To create it somewhere else: `npx wrangler pages project create <name> --production-branch main`. Wrangler may offer to create a Worker instead; pass `--force` once to get a Pages project, because only Pages gives an address of the form `<name>.pages.dev` without the account's `workers.dev` name in it. Do not use `npx wrangler deploy` for this site: that publishes a Worker at the account's `workers.dev` address.
+
+Git-connected build: set the build command to `npm ci && npm run build:web` and the output directory to `dist-web`. Set the build variable `ELECTRON_SKIP_BINARY_DOWNLOAD=1` so the build does not download Electron.
 
 `web/public/_headers` sets a strict Content-Security-Policy, including `connect-src 'none'`, so the browser itself refuses to send anything from the page to anywhere. If you ever add a feature that needs the network, that line is the one to change deliberately.
 
