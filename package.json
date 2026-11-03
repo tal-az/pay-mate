@@ -14,8 +14,7 @@
     "dist": "npm run build && electron-builder --publish never",
     "release": "npm run build && electron-builder --publish always",
     "build:web": "tsc --noEmit && vite build --mode web",
-    "preview:web": "vite preview --mode web --outDir dist-web --port 4173",
-    "dev:web": "vite --port 5173"
+    "preview:web": "vite preview --mode web --outDir dist-web --port 4173"
   },
   "dependencies": {
     "@fontsource-variable/heebo": "^5.3.0",
