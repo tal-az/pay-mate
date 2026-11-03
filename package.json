@@ -1,7 +1,7 @@
 {
   "name": "pay-mate",
   "productName": "PayMate",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "PayMate - card spending insights",
   "main": "dist-electron/electron/main.js",
