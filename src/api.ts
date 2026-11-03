@@ -1,6 +1,13 @@
 import type { PayMateApi } from '../shared/api';
+import { browserApi } from './web/browserApi';
 import { demoApi } from './demo';
 
-/** Inside the installed app the preload script provides the real API; in a plain browser we use synthetic demo data. */
-export const api: PayMateApi = window.paymate ?? demoApi;
-export const isDemo = !window.paymate;
+/**
+ * Three ways to run: inside the installed desktop app the preload script provides the API (SQLite); on the website
+ * the browser stores everything in IndexedDB; with ?demo the screens show synthetic data and save nothing.
+ */
+const wantsDemo = new URLSearchParams(window.location.search).has('demo');
+
+export const api: PayMateApi = window.paymate ?? (wantsDemo ? demoApi : browserApi);
+export const isDemo = !window.paymate && wantsDemo;
+export const isDesktop = !!window.paymate?.desktop;

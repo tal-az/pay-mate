@@ -1,10 +1,11 @@
 import { buildInsights, monthOf, recurringTimeline } from '../shared/core/insights';
 import { CATEGORY_SEEDS } from '../shared/core/categorize';
+import { emptyData, makeBackup } from '../shared/backup';
 import type {
   Budget, Category, ImportResult, MonthSummary, PayMateApi, TxRow,
 } from '../shared/api';
 
-/** Synthetic data so the interface can be developed and previewed in a plain browser. */
+/** Synthetic data so the interface can be developed and previewed in a plain browser (open the site with ?demo). */
 const categories: Category[] = CATEGORY_SEEDS.map((c, i) => ({ id: i + 1, key: c.key, name: c.name, color: c.color }));
 
 let n = 0;
@@ -133,17 +134,9 @@ export const demoApi: PayMateApi = {
     if (i >= 0) budgets.splice(i, 1);
     if (amount && amount > 0) budgets.push({ categoryKey: key, monthlyAmount: amount });
   },
-  async pickFiles() { return []; },
-  async importFiles(paths): Promise<ImportResult[]> {
-    return paths.map((p) => ({ file: p, ok: false, error: 'ייבוא קבצים זמין רק באפליקציה המותקנת' }));
+  async importFiles(files): Promise<ImportResult[]> {
+    return files.map((f) => ({ file: f.name, ok: false, error: 'ייבוא קבצים לא זמין בתצוגת דוגמה' }));
   },
-  async sync() {
-    return { ok: false, failure: 'unknown' as const, message: 'סנכרון זמין רק באפליקציה המותקנת' };
-  },
-  onSyncProgress: () => () => undefined,
-  async appVersion() { return 'demo'; },
-  async checkForUpdates() {},
-  async installUpdate() {},
-  onUpdateStatus: () => () => undefined,
-  pathForFile: (f) => f.name,
+  async exportBackup() { return JSON.stringify(makeBackup(emptyData())); },
+  async restoreBackup() { return { ok: false, error: 'שחזור גיבוי לא זמין בתצוגת דוגמה' }; },
 };

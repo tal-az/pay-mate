@@ -1,6 +1,12 @@
-import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
 const call = (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args);
+
+const subscribe = <T>(channel: string, callback: (value: T) => void) => {
+  const listener = (_e: unknown, value: T) => callback(value);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
 
 contextBridge.exposeInMainWorld('paymate', {
   months: () => call('months'),
@@ -17,21 +23,15 @@ contextBridge.exposeInMainWorld('paymate', {
   insights: (month: string) => call('insights', month),
   budgets: () => call('budgets'),
   setBudget: (key: string, amount: number | null) => call('setBudget', key, amount),
-  pickFiles: () => call('pickFiles'),
-  importFiles: (paths: string[]) => call('importFiles', paths),
-  sync: (request: unknown) => call('sync', request),
-  onSyncProgress: (callback: (message: string) => void) => {
-    const listener = (_e: unknown, message: string) => callback(message);
-    ipcRenderer.on('syncProgress', listener);
-    return () => ipcRenderer.removeListener('syncProgress', listener);
+  importFiles: (files: unknown) => call('importFiles', files),
+  exportBackup: () => call('exportBackup'),
+  restoreBackup: (text: string) => call('restoreBackup', text),
+  desktop: {
+    sync: (request: unknown) => call('sync', request),
+    onSyncProgress: (callback: (message: string) => void) => subscribe('syncProgress', callback),
+    appVersion: () => call('appVersion'),
+    checkForUpdates: () => call('checkForUpdates'),
+    installUpdate: () => call('installUpdate'),
+    onUpdateStatus: (callback: (status: unknown) => void) => subscribe('updateStatus', callback),
   },
-  appVersion: () => call('appVersion'),
-  checkForUpdates: () => call('checkForUpdates'),
-  installUpdate: () => call('installUpdate'),
-  onUpdateStatus: (callback: (status: unknown) => void) => {
-    const listener = (_e: unknown, status: unknown) => callback(status);
-    ipcRenderer.on('updateStatus', listener);
-    return () => ipcRenderer.removeListener('updateStatus', listener);
-  },
-  pathForFile: (file: File) => webUtils.getPathForFile(file),
 });
