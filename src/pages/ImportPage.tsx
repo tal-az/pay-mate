@@ -4,6 +4,8 @@ import { monthLabel } from '../format';
 import type { ImportResult, SyncResult } from '../../shared/api';
 import { PROVIDERS, findProvider, type ProviderKey } from '../../shared/providers';
 import type { Shared } from '../App';
+import { BackupError } from '../../shared/backup';
+import { MIN_PASSWORD_LENGTH, decryptBackup, encryptBackup, isEncryptedBackup } from '../../shared/backupCrypto';
 
 const COMPANY_KEY = 'paymate.syncCompany';
 
@@ -80,6 +82,10 @@ export function ImportPage({ refresh, notify }: Shared) {
   const fileInput = useRef<HTMLInputElement>(null);
   const backupInput = useRef<HTMLInputElement>(null);
   const [backupMessage, setBackupMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [backupForm, setBackupForm] = useState<{ mode: 'save' } | { mode: 'restore'; text: string } | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   async function run(files: File[]) {
     if (files.length === 0) return;
@@ -98,8 +104,33 @@ export function ImportPage({ refresh, notify }: Shared) {
     void run(files);
   }
 
-  async function downloadBackup() {
-    const text = await api.exportBackup();
+  function closeBackupForm() {
+    setBackupForm(null);
+    setPassword('');
+    setConfirmPassword('');
+  }
+
+  async function downloadBackup(e: React.FormEvent) {
+    e.preventDefault();
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setBackupMessage({ ok: false, text: `הסיסמה צריכה להכיל לפחות ${MIN_PASSWORD_LENGTH} תווים.` });
+      return;
+    }
+    if (password !== confirmPassword) {
+      setBackupMessage({ ok: false, text: 'הסיסמאות אינן זהות.' });
+      return;
+    }
+    setBackupBusy(true);
+    let text: string;
+    try {
+      text = await encryptBackup(await api.exportBackup(), password);
+    } catch {
+      setBackupBusy(false);
+      setBackupMessage({ ok: false, text: 'ההצפנה נכשלה, והגיבוי לא ירד.' });
+      return;
+    }
+    setBackupBusy(false);
+    closeBackupForm();
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
@@ -108,7 +139,7 @@ export function ImportPage({ refresh, notify }: Shared) {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    setBackupMessage({ ok: true, text: 'הגיבוי ירד. הקובץ אינו מוצפן, ולכן כדאי לשמור אותו במקום בטוח.' });
+    setBackupMessage({ ok: true, text: 'הגיבוי ירד, מוצפן בסיסמה שבחרתם. בלי הסיסמה אי אפשר לשחזר אותו.' });
   }
 
   async function restoreBackup(e: React.ChangeEvent<HTMLInputElement>) {
@@ -116,7 +147,34 @@ export function ImportPage({ refresh, notify }: Shared) {
     e.target.value = '';
     if (!file) return;
     if (!window.confirm('השחזור מחליף את כל הנתונים הקיימים בנתונים שבקובץ. להמשיך?')) return;
-    const res = await api.restoreBackup(await file.text());
+    const text = await file.text();
+    if (isEncryptedBackup(text)) {
+      setBackupMessage(null);
+      setBackupForm({ mode: 'restore', text });
+      return;
+    }
+    await finishRestore(text);
+  }
+
+  async function restoreEncrypted(e: React.FormEvent) {
+    e.preventDefault();
+    if (backupForm?.mode !== 'restore') return;
+    setBackupBusy(true);
+    let plain: string;
+    try {
+      plain = await decryptBackup(backupForm.text, password);
+    } catch (err) {
+      setBackupBusy(false);
+      setBackupMessage({ ok: false, text: err instanceof BackupError ? err.message : 'פענוח הגיבוי נכשל' });
+      return;
+    }
+    setBackupBusy(false);
+    closeBackupForm();
+    await finishRestore(plain);
+  }
+
+  async function finishRestore(text: string) {
+    const res = await api.restoreBackup(text);
     if (res.ok) {
       refresh();
       setBackupMessage({ ok: true, text: `הגיבוי שוחזר: ${res.transactions} עסקאות.` });
@@ -246,13 +304,34 @@ export function ImportPage({ refresh, notify }: Shared) {
         <h2 className="section-title">גיבוי ושחזור</h2>
         <p className="help">
           קובץ הגיבוי מכיל את כל העסקאות, המיפויים והתקציבים, ואפשר לשחזר אותו גם באפליקציה למחשב וגם באתר.
-          הקובץ אינו מוצפן, ולכן כדאי לשמור אותו במקום בטוח.
+          הגיבוי מוצפן בסיסמה שתבחרו. את הסיסמה עצמה לא שומרים בשום מקום, ולכן אי אפשר לשחזר אותה אם תישכח.
         </p>
         <p style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn primary" onClick={() => void downloadBackup()} disabled={isDemo}>הורדת גיבוי</button>
-          <button className="btn" onClick={() => backupInput.current?.click()} disabled={isDemo}>שחזור מגיבוי</button>
+          <button className="btn primary" onClick={() => { setBackupMessage(null); setBackupForm({ mode: 'save' }); }} disabled={isDemo || backupBusy}>הורדת גיבוי</button>
+          <button className="btn" onClick={() => backupInput.current?.click()} disabled={isDemo || backupBusy}>שחזור מגיבוי</button>
           <input ref={backupInput} type="file" accept=".json,application/json" hidden onChange={(e) => void restoreBackup(e)} />
         </p>
+        {backupForm && (
+          <form
+            onSubmit={(e) => void (backupForm.mode === 'save' ? downloadBackup(e) : restoreEncrypted(e))}
+            style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}
+          >
+            <input
+              className="field" type="password" autoComplete={backupForm.mode === 'save' ? 'new-password' : 'current-password'} autoFocus required
+              aria-label="סיסמה" placeholder="סיסמה" value={password} onChange={(e) => setPassword(e.target.value)}
+            />
+            {backupForm.mode === 'save' && (
+              <input
+                className="field" type="password" autoComplete="new-password" required
+                aria-label="אימות סיסמה" placeholder="אימות סיסמה" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            )}
+            <button className="btn primary" type="submit" disabled={backupBusy}>
+              {backupBusy ? 'מעבד…' : backupForm.mode === 'save' ? 'הצפנה והורדה' : 'פענוח ושחזור'}
+            </button>
+            <button className="btn" type="button" onClick={closeBackupForm} disabled={backupBusy}>ביטול</button>
+          </form>
+        )}
         <div aria-live="polite">
           {backupMessage && <div className={`result ${backupMessage.ok ? '' : 'bad'}`} style={{ marginTop: 12 }}><p>{backupMessage.text}</p></div>}
         </div>
