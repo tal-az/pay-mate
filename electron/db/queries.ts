@@ -197,4 +197,17 @@ export function setBudget(db: Db, categoryKey: string, monthlyAmount: number | n
   }
 }
 
+export function getMonthlyTarget(db: Db): number | null {
+  const row = db.prepare('SELECT amount FROM monthly_target WHERE id = 1').get() as { amount: number } | undefined;
+  return row?.amount ?? null;
+}
+
+export function setMonthlyTarget(db: Db, amount: number | null) {
+  if (amount == null || amount <= 0) {
+    db.prepare('DELETE FROM monthly_target').run();
+  } else {
+    db.prepare('INSERT INTO monthly_target (id, amount) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET amount = excluded.amount').run(amount);
+  }
+}
+
 export { monthOf };

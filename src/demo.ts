@@ -69,6 +69,7 @@ const insightFlags = new Map<string, InsightFlag>();
 const flagMeta = new Map<string, { createdAt: string; resolvedAt: string | null }>();
 
 const budgets: Budget[] = [{ categoryKey: 'groceries', monthlyAmount: 700 }, { categoryKey: 'restaurants', monthlyAmount: 300 }];
+let monthlyTarget: number | null = null;
 
 const sleep = () => new Promise((r) => setTimeout(r, 20));
 const monthsDesc = (card?: string) => [...new Set(filterByCard(data, card).map(monthOf))].sort().reverse();
@@ -196,6 +197,8 @@ export const demoApi: PayMateApi = {
     if (i >= 0) budgets.splice(i, 1);
     if (amount && amount > 0) budgets.push({ categoryKey: key, monthlyAmount: amount });
   },
+  async monthlyTarget() { return monthlyTarget; },
+  async setMonthlyTarget(amount) { monthlyTarget = amount && amount > 0 ? amount : null; },
   async importFiles(files): Promise<ImportResult[]> {
     return files.map((f) => ({ file: f.name, ok: false, error: 'ייבוא קבצים לא זמין בתצוגת דוגמה' }));
   },

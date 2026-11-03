@@ -74,6 +74,8 @@ export interface BackupData {
   rules: BackupRule[];
   reviews: BackupReview[];
   budgets: BackupBudget[];
+  /** The overall spending target for a month, or null when none is set. */
+  monthlyTarget: number | null;
   imports: BackupImport[];
 }
 
@@ -83,7 +85,7 @@ export interface Backup extends BackupData {
   exportedAt: string;
 }
 
-export const emptyData = (): BackupData => ({ categories: [], transactions: [], rules: [], reviews: [], budgets: [], imports: [], flags: [], insightFlags: [] });
+export const emptyData = (): BackupData => ({ categories: [], transactions: [], rules: [], reviews: [], budgets: [], monthlyTarget: null, imports: [], flags: [], insightFlags: [] });
 
 export function makeBackup(data: BackupData): Backup {
   return { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), ...data };
@@ -204,6 +206,9 @@ export function parseBackup(raw: string): BackupData {
     if (monthlyAmount > 0) budgets.set(o.categoryKey, { categoryKey: o.categoryKey, monthlyAmount });
   });
 
+  const target = root.monthlyTarget;
+  const monthlyTarget = typeof target === 'number' && Number.isFinite(target) && target > 0 ? target : null;
+
   const imports = list(root, 'imports').map((item, i): BackupImport => {
     const o = obj(item, `ייבוא ${i + 1}`);
     return {
@@ -253,6 +258,6 @@ export function parseBackup(raw: string): BackupData {
 
   return {
     categories: [...customs.values()], transactions, rules: [...rules.values()], reviews: [...reviews.values()],
-    budgets: [...budgets.values()], imports, flags: [...flags.values()], insightFlags: [...insightFlags.values()],
+    budgets: [...budgets.values()], monthlyTarget, imports, flags: [...flags.values()], insightFlags: [...insightFlags.values()],
   };
 }

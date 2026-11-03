@@ -65,6 +65,8 @@ export const browserApi: PayMateApi = {
   async insights(month, card) { return logic.monthInsights(await readData(), month, card); },
   async budgets() { return logic.listBudgets(await readData()); },
   async setBudget(key, amount) { await updateData((data) => logic.setBudget(data, key, amount)); },
+  async monthlyTarget() { return logic.getMonthlyTarget(await readData()); },
+  async setMonthlyTarget(amount) { await updateData((data) => logic.setMonthlyTarget(data, amount)); },
   async importFiles(files) {
     const results: ImportResult[] = [];
     for (const f of files) results.push(await importOne(f));
