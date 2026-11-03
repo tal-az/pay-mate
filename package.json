@@ -62,6 +62,7 @@
       ]
     },
     "nsis": {
+      "artifactName": "PayMate-Setup.exe",
       "oneClick": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false

@@ -84,6 +84,11 @@ button, select, input { font: inherit; color: inherit; }
 .nav-item:hover { background: rgba(255, 255, 255, 0.07); color: var(--rail-ink); }
 .nav-item[aria-current='page'] { background: var(--tag); color: var(--tag-ink); font-weight: 800;  }
 .nav-item:focus-visible { outline: 3px solid var(--tag); outline-offset: 1px; }
+.get-desktop { margin-top: auto; display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px dashed var(--rail-ink-2); border-radius: 4px; color: var(--rail-ink-2); font-size: 13px; line-height: 1.4; text-decoration: none; transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
+.get-desktop svg { flex: none; margin-top: 1px; }
+.get-desktop:hover { background: rgba(255, 255, 255, 0.07); color: var(--rail-ink); }
+.get-desktop:focus-visible { outline: 3px solid var(--tag); outline-offset: 1px; }
+.get-desktop + .privacy { margin-top: 14px; }
 .privacy { margin-top: auto; padding: 0 12px; font-size: 13px; color: var(--rail-ink-2); line-height: 1.5; }
 
 /* Main */
@@ -285,7 +290,7 @@ input.money { width: 120px; text-align: left; }
   .rail { width: auto; flex-direction: row; align-items: center; gap: 2px; padding: 8px 10px; overflow-x: auto; }
   .brand { padding: 0 10px; font-size: 18px; }
   .nav-item { white-space: nowrap; flex: none; }
-  .privacy { display: none; }
+  .privacy, .get-desktop { display: none; }
   .main { min-height: 0; padding: 16px 16px 40px; }
   .price-tag { font-size: 44px; padding: 6px 20px 10px 30px; }
   .total-row { gap: 12px; margin-bottom: 24px; }
