@@ -9,7 +9,7 @@ import {
 import {
   listMonths, listCards, lastUpdate, unknownMerchants, monthTotals, recurringTimelineRows, listCategories, monthSummary, monthTransactions, monthInsights, listBudgets, setBudget, getMonthlyTarget, setMonthlyTarget, listFlags, listInsightFlags,
 } from './db/queries';
-import { parseIsracardBuffer } from '../shared/import/isracard';
+import { parseStatementBuffer } from '../shared/import';
 import { exportBackup, restoreData } from './db/backup';
 import { BackupError, parseBackup } from '../shared/backup';
 import { mapAccounts, failureFromErrorType, failureMessage, type ScrapedAccount } from './sources/sync/map';
@@ -45,8 +45,8 @@ function createWindow() {
 
 async function importOne({ name: file, data }: ImportInput): Promise<ImportResult> {
   try {
-    if (!/\.xlsx$/i.test(file)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט');
-    const stmt = await parseIsracardBuffer(data);
+    if (!/\.xlsx$/i.test(file)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט או של מקס');
+    const stmt = await parseStatementBuffer(data);
     const { added, skipped } = importStatement(db, stmt, file, 'excel');
     const sum = stmt.transactions.reduce((s, t) => s + t.chargedAmount, 0);
     return {

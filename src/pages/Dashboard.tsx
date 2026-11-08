@@ -24,7 +24,7 @@ export function Dashboard({ month, months, cards, card, selectCard, go, selectMo
     return (
       <div className="empty">
         <h2>עוד אין כאן נתונים</h2>
-        <p>{isDesktop ? 'סנכרנו את כרטיס האשראי, או ייבאו קובץ של ישראכארט, כדי לראות לאן הלך הכסף.' : 'ייבאו את פירוט העסקאות החודשי מאתר ישראכארט כדי לראות לאן הלך הכסף.'}</p>
+        <p>{isDesktop ? 'סנכרנו את כרטיס האשראי, או ייבאו קובץ של ישראכארט או מקס, כדי לראות לאן הלך הכסף.' : 'ייבאו את פירוט העסקאות החודשי מאתר ישראכארט או מקס כדי לראות לאן הלך הכסף.'}</p>
         <p style={{ marginTop: 20 }}>
           <button className="btn primary" onClick={() => go('settings')}>{isDesktop ? 'סנכרון או ייבוא' : 'ייבוא קובץ'}</button>
         </p>

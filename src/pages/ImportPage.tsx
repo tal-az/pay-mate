@@ -285,14 +285,14 @@ export function ImportPage({ cards, refresh, notify }: Shared) {
       </section>}
 
       <section className="section" style={desktop || cards.length > 0 ? undefined : { marginTop: 20 }}>
-        <h2 className="section-title">{desktop ? 'או ייבוא מקובץ של ישראכארט' : 'ייבוא מקובץ של ישראכארט'}</h2>
+        <h2 className="section-title">{desktop ? 'או ייבוא מקובץ של ישראכארט או מקס' : 'ייבוא מקובץ של ישראכארט או מקס'}</h2>
         <div
           className={`drop ${over ? 'over' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}
           onDragLeave={() => setOver(false)}
           onDrop={onDrop}
         >
-          <h2>גררו לכאן את קובץ ה־Excel של ישראכארט</h2>
+          <h2>גררו לכאן את קובץ ה־Excel של ישראכארט או של מקס</h2>
           <p>אפשר לגרור כמה חודשים בבת אחת. ייבוא חוזר של אותו קובץ לא יוצר כפילויות.</p>
           <input ref={fileInput} type="file" multiple accept=".xlsx" hidden onChange={onPicked} />
           <button className="btn primary" onClick={() => fileInput.current?.click()} disabled={busy}>
@@ -377,6 +377,9 @@ export function ImportPage({ cards, refresh, notify }: Shared) {
         <h2 className="section-title">איך מורידים את הקובץ</h2>
         <p className="help">
           באתר ישראכארט נכנסים לפירוט העסקאות, בוחרים חודש חיוב ולוחצים על ייצוא ל־Excel. הקובץ מכיל חודש אחד לכרטיס אחד.
+        </p>
+        <p className="help">
+          באתר מקס נכנסים לפירוט העסקאות, בוחרים חודש חיוב ולוחצים על ייצוא ל־Excel. הקובץ יכול לכלול כמה כרטיסים, ועסקאות שעוד לא נקלטו לא מיובאות עד שיחויבו.
         </p>
       </section>
 
