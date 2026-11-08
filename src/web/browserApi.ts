@@ -6,10 +6,10 @@ import * as logic from './logic';
 async function importOne(file: ImportInput): Promise<ImportResult> {
   const name = file.name;
   try {
-    if (!/\.xlsx$/i.test(name)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט');
+    if (!/\.xlsx$/i.test(name)) throw new Error('נתמכים רק קובצי Excel (xlsx) של ישראכארט או של מקס');
     // The parser and exceljs are large, so they load only when someone actually imports a file.
-    const { parseIsracardBuffer } = await import('../../shared/import/isracard');
-    const stmt = await parseIsracardBuffer(file.data);
+    const { parseStatementBuffer } = await import('../../shared/import');
+    const stmt = await parseStatementBuffer(file.data);
     const { added, skipped } = await updateData((data) => logic.importStatement(data, stmt, name, 'excel'));
     const sum = stmt.transactions.reduce((s, t) => s + t.chargedAmount, 0);
     return {

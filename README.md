@@ -5,7 +5,7 @@ Card spending insights, in Hebrew. The same interface ships two ways:
 | | Desktop app (Windows, Electron) | Website (static, Cloudflare) |
 |---|---|---|
 | Data lives in | A SQLite file on the computer | The browser (IndexedDB) |
-| Getting data in | Sync from the card company's site, or Excel files | Excel files from Isracard |
+| Getting data in | Sync from the card company's site, or Excel files | Excel files from Isracard or Max |
 | Updates | Installer updates from GitHub releases | Redeploy the site |
 | Backup and restore | Settings page | Settings page, **same file format** |
 
@@ -76,7 +76,7 @@ One JSON file (`paymate-backup`, version 1) is understood by both targets, so da
 ## Layout
 
 ```
-shared/        Used by both targets: categories, insights, the Isracard Excel parser, the backup format
+shared/        Used by both targets: categories, insights, the Isracard and Max Excel parsers, the backup format
 src/           The interface (React). src/web/ is the website's storage: IndexedDB plus the same queries as the desktop app
 electron/      The desktop app: main process, SQLite, bank sync, updates
 web/public/    Files copied into the website as they are (headers)
