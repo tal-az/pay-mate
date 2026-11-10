@@ -1,7 +1,7 @@
 {
   "name": "pay-mate",
   "productName": "PayMate",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "PayMate - card spending insights",
   "main": "dist-electron/electron/main.js",
@@ -20,7 +20,7 @@
     "@fontsource-variable/heebo": "^5.3.0",
     "electron-updater": "^6.8.11",
     "exceljs": "^4.4.0",
-    "israeli-bank-scrapers": "6.12.2",
+    "israeli-bank-scrapers": "6.13.0",
     "jszip": "^3.10.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
